@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String?
+  image           String?
+  shippingAddress String?  // For Agent
+  paymentMethod   String?  // For Agent (e.g., "Visa ending 4242")
+  walletBalance   Float    @default(0.0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  alerts          Alert[]
+  orders          Order[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  category     String
+  description  String
+  images       Json
+  basePrice    Float
+  currentPrice Float
+  discount     Int
+  rating       Float
+  reviewCount  Int
+  trustScore   Int
+  specs        Json
+  priceHistory Json
+  sellers      Json
+  tags         Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Alert {
+  id               String   @id @default(cuid())
+  userEmail        String
+  user             User     @relation(fields: [userEmail], references: [email])
+  productTitle     String
+  targetPrice      Float
+  currentPrice     Float
+  productImage     String
+  productLink      String
+  isActive         Boolean  @default(true)
+  autoBuy          Boolean  @default(false)
+  agentPaymentMode String?  // "AUTO" or "MANUAL"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Order {
+  id           String   @id @default(cuid())
+  userEmail    String
+  user         User     @relation(fields: [userEmail], references: [email])
+  productTitle String
+  price        Float
+  productImage String
+  status       String   @default("Processing") // Processing, Shipped, Delivered
+  orderedAt    DateTime @default(now())
+}
