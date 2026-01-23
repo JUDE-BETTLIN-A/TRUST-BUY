@@ -23,7 +23,7 @@ export default function HomePage() {
 
   // Dashboard State
   const [activeAlertsCount, setActiveAlertsCount] = useState(0);
-  const [totalSavings, setTotalSavings] = useState(0);
+
   const [basketCount, setBasketCount] = useState(0);
   const [displayName, setDisplayName] = useState(session?.user?.name || "User");
 
@@ -48,8 +48,7 @@ export default function HomePage() {
     if (session?.user) {
       getAlerts().then(alerts => {
         setActiveAlertsCount(alerts.length);
-        // In a real app, calculate savings based on price drops
-        setTotalSavings(0);
+
       }).catch(err => console.error("Failed to load alerts", err));
 
       // Mock basket count (replace with real getBasket() later)
@@ -60,9 +59,8 @@ export default function HomePage() {
       try {
         // Use a generic query to get diverse results including Home, Auto, etc.
         const products = await searchProductsAction("trending best selling products", 1);
-        // Load more items (12) to account for potential image load failures (auto-hidden cards),
-        // ensuring we always display a full row of 4 products.
-        setTrendingProducts(products.slice(0, 12));
+        // Show exactly 4 products as requested
+        setTrendingProducts(products.slice(0, 4));
       } catch (e) {
         console.error("Failed to load trending items", e);
       } finally {
@@ -110,7 +108,7 @@ export default function HomePage() {
             </div>
 
             {/* Dashboard Stats / Quick Links */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
               <div onClick={() => router.push('/alerts')} className="bg-white dark:bg-surface-dark p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all cursor-pointer group">
                 <div className="flex justify-between items-start mb-2">
                   <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
@@ -133,15 +131,7 @@ export default function HomePage() {
                 <p className="text-xs text-gray-500">{basketCount} items saved</p>
               </div>
 
-              <div className="bg-gradient-to-br from-primary to-purple-600 p-5 rounded-2xl shadow-lg text-white">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="bg-white/20 p-2 rounded-lg text-white">
-                    <span className="material-symbols-outlined">savings</span>
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold mb-0.5">₹{totalSavings.toLocaleString()}</h3>
-                <p className="text-xs text-white/80">Total Potential Savings</p>
-              </div>
+
             </div>
 
             {/* Sub-headline for search */}

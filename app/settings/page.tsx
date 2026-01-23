@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Shield, Moon, Wifi, Info, Wallet } from 'lucide-react'; // Added Wallet icon
+import { Bell, Shield, Moon, Wifi, Info } from 'lucide-react'; // Added Wallet icon
 import { signOut } from "next-auth/react";
-import { getAgentConfig, depositToWallet } from "../agent/actions";
+
 
 /* New Imports */
 import { User } from 'lucide-react';
@@ -16,13 +16,12 @@ import { useSession } from "next-auth/react";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [depositAmount, setDepositAmount] = useState(5000);
+
   const [userAvatar, setUserAvatar] = useState("");
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
-    loadWallet();
+
     // Load Avatar
     const savedAvatar = localStorage.getItem('trustbuy_user_avatar');
     if (savedAvatar) {
@@ -56,25 +55,14 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('trustbuy_avatar_update'));
   };
 
-  const loadWallet = async () => {
-    const config = await getAgentConfig();
-    if (config) {
-      setWalletBalance(config.walletBalance || 0);
-    }
-  };
 
-  const handleDeposit = async () => {
-    await depositToWallet(depositAmount);
-    loadWallet();
-    setDepositAmount(5000);
-  };
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
       <div className="mb-10">
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Settings & Preferences</h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Manage your notifications, privacy, account balance, and app behavior.
+          Manage your notifications, privacy, and app behavior.
         </p>
       </div>
 
@@ -97,45 +85,6 @@ export default function SettingsPage() {
             />
           </CardContent>
         </Card>
-        {/* Wallet & Payments (Moved from Agent Page) */}
-        <div id="wallet" className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 rounded-2xl shadow-xl">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Wallet className="w-5 h-5 text-blue-200" />
-                <p className="text-blue-100 text-sm font-medium">TrustBuy Wallet</p>
-              </div>
-              <h3 className="text-4xl font-bold">₹{walletBalance.toLocaleString()}</h3>
-              <p className="text-sm text-blue-100/80 mt-1">Available for Agent Auto-Buy</p>
-            </div>
-            <div className="bg-white/10 p-3 rounded-xl backdrop-blur-sm">
-              <span className="material-symbols-outlined text-2xl">account_balance_wallet</span>
-            </div>
-          </div>
-
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/10">
-            <label className="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-2 block">Add Funds</label>
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">₹</span>
-                <input
-                  type="number"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(Number(e.target.value))}
-                  className="w-full bg-black/20 border border-white/10 rounded-lg pl-7 pr-3 py-2 text-white placeholder-white/30 outline-none focus:bg-black/30 transition-colors"
-                />
-              </div>
-              <button
-                onClick={handleDeposit}
-                className="bg-white text-blue-700 font-bold px-6 py-2 rounded-lg hover:bg-blue-50 transition-colors shadow-lg active:scale-95 transform"
-              >
-                + Add Funds
-              </button>
-            </div>
-          </div>
-        </div>
-
-
         {/* Notifications */}
         <Card>
           <CardHeader>

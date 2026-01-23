@@ -16,6 +16,12 @@ const DEFAULT_FILTERS: FilterState = {
   minTrustScore: 0,
   sellers: [],
   brands: [],
+  // New filter fields
+  features: [],
+  useCase: '',
+  minDiscount: 0,
+  availability: '',
+  minRating: 0,
 };
 
 function SearchPageContent() {
@@ -92,11 +98,40 @@ function SearchPageContent() {
     const nextPage = page + 1;
 
     try {
-      const newProducts = await searchProductsAction(searchQuery, nextPage);
-      if (newProducts.length > 0) {
-        setResults(prev => [...prev, ...newProducts]);
-        setPage(nextPage);
+      let currentPage = page + 1;
+      let foundUnique = false;
+      let attempts = 0;
+
+      while (!foundUnique && attempts < 3) {
+        console.log(`[Load More] Attempting Page ${currentPage}...`);
+        const newProducts = await searchProductsAction(searchQuery, currentPage);
+
+        if (!newProducts || newProducts.length === 0) {
+          console.log(`[Load More] Page ${currentPage} returned no results.`);
+          break;
+        }
+
+        // Check against CURRENT results (snapshot)
+        const existingIds = new Set(results.map(r => r.id));
+        const uniqueCount = newProducts.filter(p => !existingIds.has(p.id)).length;
+
+        console.log(`[Load More] Page ${currentPage}: Found ${uniqueCount} unique items out of ${newProducts.length}`);
+
+        if (uniqueCount > 0) {
+          setResults(prev => {
+            const currentIds = new Set(prev.map(p => p.id));
+            const reallyUnique = newProducts.filter(p => !currentIds.has(p.id));
+            return [...prev, ...reallyUnique];
+          });
+          setPage(currentPage);
+          foundUnique = true;
+        } else {
+          console.log(`[Load More] Page ${currentPage} was entirely duplicates. Skipping...`);
+          currentPage++;
+          attempts++;
+        }
       }
+
     } catch (err) {
       console.error("Failed to load more products", err);
     } finally {
@@ -135,6 +170,72 @@ function SearchPageContent() {
         if (!filters.brands.some(b => b.toLowerCase() === brand)) return false;
       }
 
+      // 5. Discount Filter
+      if (filters.minDiscount > 0) {
+        let discount = 0;
+        if (product.originalPrice) {
+          const pOrig = Math.floor(parseFloat(product.originalPrice.replace(/[^\d.]/g, ''))) || 0;
+          if (pOrig > priceNum) {
+            discount = ((pOrig - priceNum) / pOrig) * 100;
+          }
+        }
+        if (discount < filters.minDiscount) return false;
+      }
+
+      // 6. Rating Filter (Convert TrustScore 0-10 to Stars 0-5)
+      if (filters.minRating > 0) {
+        const stars = (product.rating || 0) / 2;
+        if (stars < filters.minRating) return false;
+      }
+
+      // 7. Availability Filter (Mock Logic based on shipping text)
+      if (filters.availability) {
+        const shipText = (product.shipping || "").toLowerCase();
+        if (filters.availability === 'free' && !shipText.includes('free')) return false;
+        // 'fast' -> check for 'tomorrow' or '24 hours' or 'today'
+        if (filters.availability === 'fast' && !shipText.match(/(today|tomorrow|24|fast|express)/i)) return false;
+      }
+
+      // 8. Features & Use Case (Text Matching Heuristics)
+      const combinedText = (product.title + " " + JSON.stringify(product.specs || {})).toLowerCase();
+
+      if (filters.features.length > 0) {
+        const hasAllFeatures = filters.features.every(fid => {
+          // Smart mapping for common IDs
+          if (fid === '5g') return combinedText.includes('5g');
+          if (fid === 'ram8') return combinedText.match(/([8-9]|\d{2})\s?gb/); // 8GB or more
+          if (fid === '16gb') return combinedText.match(/(1[6-9]|[2-9]\d)\s?gb/); // 16GB or more
+          if (fid === 'storage256') return combinedText.match(/(256|512|1\s?tb)/);
+          if (fid === 'ssd') return combinedText.includes('ssd');
+          if (fid === 'touch') return combinedText.includes('touch');
+          if (fid === 'amoled') return combinedText.includes('amoled') || combinedText.includes('oled');
+          if (fid === '4k') return combinedText.includes('4k') || combinedText.includes('uhd');
+          if (fid === 'wireless') return combinedText.includes('wireless') || combinedText.includes('bluetooth');
+          // Default: loosen match (check if label part is in text?) 
+          // Since we only have ID, we rely on the ID being descriptive or simple
+          return combinedText.includes(fid);
+        });
+        if (!hasAllFeatures) return false;
+      }
+
+      if (filters.useCase) {
+        // Map Use Case ID to keywords
+        const uc = filters.useCase;
+        const keywords: Record<string, string[]> = {
+          'gaming': ['gaming', 'game', 'rtx', 'gtx', 'graphics', 'ps5', 'xbox', 'nintendo'],
+          'student': ['student', 'chromebook', 'office', 'light'],
+          'camera': ['camera', 'pixel', 'mp', 'sony'],
+          'gym': ['sport', 'fit', 'run', 'sweat', 'water'],
+          'running': ['run', 'jog', 'sport'],
+        };
+
+        if (keywords[uc]) {
+          if (!keywords[uc].some(k => combinedText.includes(k))) return false;
+        } else {
+          if (!combinedText.includes(uc)) return false;
+        }
+      }
+
       return true;
     });
 
@@ -165,8 +266,12 @@ function SearchPageContent() {
         newFilters.maxPrice = 300000;
       } else if (key === 'minTrustScore') {
         newFilters.minTrustScore = 0;
-      } else if (Array.isArray(newFilters[key])) {
-        newFilters[key] = (newFilters[key] as string[]).filter(v => v !== value);
+      } else if (key === 'sellers') {
+        newFilters.sellers = newFilters.sellers.filter(v => v !== value);
+      } else if (key === 'brands') {
+        newFilters.brands = newFilters.brands.filter(v => v !== value);
+      } else if (key === 'features') {
+        newFilters.features = newFilters.features.filter(v => v !== value);
       }
       return newFilters;
     });
@@ -183,6 +288,9 @@ function SearchPageContent() {
   };
 
   const handleCompareClick = () => {
+    // Save selected products to localStorage for the compare page
+    const productsToCompare = results.filter(p => selectedProducts.includes(p.id));
+    localStorage.setItem('trustbuy_compare', JSON.stringify(productsToCompare));
     router.push('/compare');
   };
 
@@ -279,6 +387,7 @@ function SearchPageContent() {
           filters={filters}
           setFilters={setFilters}
           availableBrands={availableBrands}
+          contextQuery={category || query}
         />
       </aside>
 
@@ -316,6 +425,22 @@ function SearchPageContent() {
                 className="p-2.5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg text-gray-500 hover:text-primary lg:hidden"
               >
                 <span className="material-symbols-outlined">filter_list</span>
+              </button>
+              {/* Compare Products Toggle Button */}
+              <button
+                onClick={() => {
+                  setIsCompareMode(!isCompareMode);
+                  if (isCompareMode) {
+                    setSelectedProducts([]);
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${isCompareMode
+                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  : 'bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark text-gray-700 dark:text-gray-300 hover:border-primary hover:text-primary'
+                  }`}
+              >
+                <span className="material-symbols-outlined text-lg">compare_arrows</span>
+                <span className="hidden sm:inline">{isCompareMode ? 'Exit Compare' : 'Compare'}</span>
               </button>
             </div>
           )}
@@ -395,7 +520,38 @@ function SearchPageContent() {
             </div>
           ) : sortedAndFilteredResults.length > 0 ? (
             sortedAndFilteredResults.map((product, idx) => (
-              <div key={product.id} className="animate-fade-in-up" style={{ animationDelay: `${(idx % 10) * 0.1}s`, animationFillMode: 'both' }}>
+              <div key={`${product.id}-${idx}`} className="animate-fade-in-up relative" style={{ animationDelay: `${(idx % 10) * 0.1}s`, animationFillMode: 'both' }}>
+                {/* Compare Mode Selection Overlay */}
+                {isCompareMode && (
+                  <div
+                    onClick={() => {
+                      setSelectedProducts(prev => {
+                        if (prev.includes(product.id)) {
+                          return prev.filter(id => id !== product.id);
+                        } else if (prev.length < 4) {
+                          return [...prev, product.id];
+                        }
+                        return prev;
+                      });
+                    }}
+                    className={`absolute inset-0 z-10 cursor-pointer rounded-lg border-2 transition-all ${selectedProducts.includes(product.id)
+                      ? 'border-primary bg-primary/5'
+                      : 'border-transparent hover:border-primary/50 hover:bg-primary/5'
+                      }`}
+                  >
+                    {/* Selection Checkbox */}
+                    <div className={`absolute top-4 right-4 size-8 rounded-full flex items-center justify-center transition-all ${selectedProducts.includes(product.id)
+                      ? 'bg-primary text-white shadow-lg'
+                      : 'bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600'
+                      }`}>
+                      {selectedProducts.includes(product.id) ? (
+                        <span className="material-symbols-outlined text-lg">check</span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">{selectedProducts.length < 4 ? '+' : ''}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <SearchResultCard
                   id={idx}
                   title={product.title}
@@ -404,11 +560,12 @@ function SearchPageContent() {
                   image={product.image}
                   rating={product.rating}
                   trustScore={product.trustScoreBadge}
+                  specs={product.specs}
                   isTopChoice={idx === 0 && sortBy === 'Best Match'}
                   condition={idx === 1 ? "New - International" : idx === 2 ? "Refurbished" : "New"}
                   link={product.link}
                   onAddToBasket={() => handleAddToBasketReq(product)}
-                  isSelected={selectedProducts.includes(product.id)}
+                  priceHistory={product.priceHistory}
                 />
               </div>
             ))
@@ -513,6 +670,7 @@ function SearchPageContent() {
               filters={filters}
               setFilters={setFilters}
               availableBrands={availableBrands}
+              contextQuery={category || query}
             />
           </div>
         </div>

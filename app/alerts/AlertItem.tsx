@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { removeAlert } from "./actions";
-import { AgentDelegateModal } from "./AgentDelegateModal";
+
 
 interface AlertProps {
     id: string;
@@ -22,7 +22,7 @@ interface AlertItemProps {
 
 export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
     const [removed, setRemoved] = useState(false);
-    const [isDelegateOpen, setIsDelegateOpen] = useState(false);
+
 
     const handleRemove = async () => {
         setRemoved(true);
@@ -85,13 +85,7 @@ export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
                 )}
             </div>
             <div className="flex gap-2">
-                <button
-                    onClick={() => setIsDelegateOpen(true)}
-                    className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-                    title="Delegate to Agent"
-                >
-                    <span className="material-symbols-outlined">smart_toy</span>
-                </button>
+
                 {/* Link to product */}
                 <a
                     href={alert.productLink}
@@ -110,11 +104,7 @@ export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
                 </button>
             </div>
 
-            <AgentDelegateModal
-                alert={alert}
-                isOpen={isDelegateOpen}
-                onClose={() => setIsDelegateOpen(false)}
-            />
+
         </div >
     );
 }

@@ -65,8 +65,7 @@ export function TopNavbar() {
         { href: "/home", label: "Home", icon: "home" },
         { href: "/basket", label: "My Basket", icon: "shopping_basket" },
         { href: "/offers", label: "Upcoming Offers", icon: "local_offer" },
-        { href: "/alerts", label: "Alerts", icon: "notifications" },
-        { href: "/agent", label: "Agent", icon: "smart_toy" }
+        { href: "/alerts", label: "Alerts", icon: "notifications" }
     ];
 
     return (

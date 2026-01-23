@@ -11,6 +11,24 @@ export interface Product {
     rating: number;
     trustScoreBadge: string;
     link?: string;
+    priceHistory?: { date: string, price: number }[];
+    originalPrice?: string;
+    shipping?: string;
+    source?: 'main' | 'related';
+    sellers?: {
+        storeName: string;
+        price: string;
+        link: string;
+        available: boolean;
+    }[];
+    specs?: {
+        ram?: string;
+        storage?: string;
+        display?: string;
+        camera?: string;
+        processor?: string;
+        battery?: string;
+    };
 }
 
 const STORES = ['Amazon.in', 'Flipkart', 'Croma', 'Reliance Digital', 'Tata Cliq', 'Jiomart'];
@@ -28,7 +46,8 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
     const isTrending = query.toLowerCase().includes('trending');
 
     // Generate 4-8 results
-    const count = isTrending ? 8 : getRandomInt(4, 8);
+    // Generate at least 4 items for trending to ensure row fills
+    const count = isTrending ? 8 : Math.max(4, getRandomInt(4, 8));
     const results: Product[] = [];
 
     // Shuffle array helper
@@ -86,7 +105,39 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         "clothes": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=500&auto=format&fit=crop&q=60",
         "sports": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=500&auto=format&fit=crop&q=60",
         "auto": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=500&auto=format&fit=crop&q=60",
-        "car": "https://images.unsplash.com/photo-1503376763036-066120622c74?w=500&auto=format&fit=crop&q=60"
+        "car": "https://images.unsplash.com/photo-1503376763036-066120622c74?w=500&auto=format&fit=crop&q=60",
+        "sofa": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500&auto=format&fit=crop&q=60",
+        "bed": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=500&auto=format&fit=crop&q=60",
+        "mattress": "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500&auto=format&fit=crop&q=60",
+        "refrigerator": "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=60",
+        "nike": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60",
+        "adidas": "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=500&auto=format&fit=crop&q=60",
+        "cricket": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=500&auto=format&fit=crop&q=60",
+        "football": "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=500&auto=format&fit=crop&q=60",
+        "gym": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=500&auto=format&fit=crop&q=60",
+        "jeans": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+        "shirt": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&auto=format&fit=crop&q=60",
+        "jacket": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60",
+        "boots": "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=500&auto=format&fit=crop&q=60",
+        "polo": "https://images.unsplash.com/photo-1625910513413-5fc45e80f9fa?w=500&auto=format&fit=crop&q=60",
+        "backpack": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&auto=format&fit=crop&q=60",
+        "puma": "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=500&auto=format&fit=crop&q=60",
+        "levis": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+        "allen": "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&auto=format&fit=crop&q=60",
+        "woodland": "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=500&auto=format&fit=crop&q=60",
+        "tommy": "https://images.unsplash.com/photo-1625910513413-5fc45e80f9fa?w=500&auto=format&fit=crop&q=60",
+        "wildcraft": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&auto=format&fit=crop&q=60",
+        "ultraboost": "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=500&auto=format&fit=crop&q=60",
+        "air max": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60"
+    };
+
+    // Category-specific product lists for better fallback results
+    const CATEGORY_PRODUCTS: Record<string, string[]> = {
+        'electronics': ['iPhone 15 Pro Max 256GB', 'Samsung Galaxy S24 Ultra', 'MacBook Air M3', 'Sony WH-1000XM5 Headphones', 'Apple Watch Series 9', 'Dell XPS 15 Laptop', 'iPad Pro 12.9 M2', 'Bose QuietComfort Earbuds'],
+        'home': ['Sleepwell Mattress Queen Size', 'Samsung 253L Refrigerator', 'LG 1.5 Ton Split AC', 'Urban Ladder Sofa Set', 'Prestige Electric Kettle', 'Philips Air Fryer XL', 'Dyson V12 Vacuum Cleaner', 'IFB 7kg Washing Machine'],
+        'fashion': ['Nike Air Max 270', 'Adidas Ultraboost 22', 'Levis 511 Slim Fit Jeans', 'Allen Solly Formal Shirt', 'Puma Training Jacket', 'Woodland Leather Boots', 'Tommy Hilfiger Polo T-Shirt', 'Wildcraft Travel Backpack'],
+        'sports': ['SS Cricket Bat Kashmir Willow', 'Nivia Football Storm Size 5', 'Yonex Badminton Racket', 'Boldfit Gym Gloves', 'Decathlon Yoga Mat 6mm', 'Nike Dri-FIT Running Shorts', 'Fitbit Charge 5 Fitness Band', 'Strauss Adjustable Dumbbells'],
+        'auto': ['Vega Helmet Full Face', 'Amkette Car Mobile Holder', 'Bosch Tyre Inflator', 'Wakefit Car Seat Cushion', 'Rain-X Windshield Cleaner', 'JBL Car Speakers', 'Autofurnish Car Cover', 'CTEK Battery Charger']
     };
 
     for (let i = 0; i < count; i++) {
@@ -100,6 +151,18 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
             maximumFractionDigits: 0
         }).format(priceValINR);
 
+        // Generate Original Price for Discounts
+        const discountPct = Math.random() < 0.7 ? (Math.random() * 0.4) + 0.05 : 0; // 70% chance of discount, 5-45%
+        let formattedOriginalPrice: string | undefined = undefined;
+        if (discountPct > 0) {
+            const originalVal = priceValINR * (1 + discountPct);
+            formattedOriginalPrice = new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(originalVal);
+        }
+
         const isBestPrice = i === 0 || Math.random() > 0.8;
 
         let title = `${formattedQuery} ${i % 2 === 0 ? 'Pro' : 'Standard'} Edition - ${store} Exclusive Bundle`;
@@ -109,14 +172,38 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         const lowerQuery = query.toLowerCase();
         let keywordMatch = Object.keys(KEYWORD_IMAGES).find(key => lowerQuery.includes(key));
 
-        if (isTrending) {
+        // Check if this is a category-based search (both direct and expanded queries)
+        const categoryKeywords: Record<string, string[]> = {
+            'electronics': ['electronics', 'iphone', 'samsung', 'galaxy', 'laptop', 'headphones', 'smartwatch', 'macbook', 'ipad', 'phone'],
+            'home': ['home', 'sofa', 'bed', 'mattress', 'tv', 'air conditioner', 'refrigerator', 'furniture', 'appliance'],
+            'fashion': ['fashion', 'nike', 'adidas', 't-shirt', 'jeans', 'jacket', 'shoes', 'clothing', 'shirt', 'levis'],
+            'sports': ['sports', 'cricket', 'football', 'gym', 'yoga', 'fitness', 'badminton', 'bat', 'equipment'],
+            'auto': ['auto', 'car', 'dash cam', 'tyre', 'seat cover', 'helmet', 'vehicle', 'bike']
+        };
+
+        let categoryMatch: string | undefined = undefined;
+        for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+            if (keywords.some(kw => lowerQuery.includes(kw))) {
+                categoryMatch = cat;
+                break;
+            }
+        }
+
+        if (categoryMatch) {
+            // Use category-specific product names
+            const categoryProducts = CATEGORY_PRODUCTS[categoryMatch];
+            title = categoryProducts[i % categoryProducts.length];
+            // Find a matching image keyword from the title
+            const titleLower = title.toLowerCase();
+            const imageKey = Object.keys(KEYWORD_IMAGES).find(k => titleLower.includes(k));
+            image = imageKey ? KEYWORD_IMAGES[imageKey] : `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
+        } else if (isTrending) {
             title = TRENDING_ITEMS[i % TRENDING_ITEMS.length];
             image = TRENDING_IMAGES[title] || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=60";
         } else if (keywordMatch) {
             image = KEYWORD_IMAGES[keywordMatch];
         } else {
             // Use Pollinations.ai for relevant product images based on the query.
-            // Clean simple title for better AI generation if undefined
             image = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
         }
 
@@ -133,8 +220,16 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
             brand = title.split(' ')[0];
         }
 
+        // Mock ID that looks like real ID but unique per page call to allow "Load More" to work for demo
+        const simpleHash = title.toLowerCase().replace(/[^a-z0-9]/g, '') + store.toLowerCase() + page + i;
+        // Adding random salt to prevent React key collision on re-fetches
+        const mockId = `mock-${simpleHash.substring(0, 30)}-${Math.random().toString(36).slice(2, 6)}`;
+
+        // Shipping
+        const shipping = Math.random() > 0.4 ? "Free Shipping" : "₹40 Shipping";
+
         results.push({
-            id: `prod-${page}-${i}-${formattedQuery.replace(/\s+/g, '-')}`,
+            id: mockId,
             title: title,
             price: formattedPrice,
             image: image,
@@ -145,7 +240,17 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
             bestPrice: isBestPrice,
             rating: rating,
             trustScoreBadge: trustBadge,
-            link: `https://www.google.com/search?q=${encodeURIComponent(title)}`
+            link: `https://www.google.com/search?q=${encodeURIComponent(title)}`,
+            originalPrice: formattedOriginalPrice,
+            shipping: shipping,
+            priceHistory: Array.from({ length: 6 }).map((_, idx) => {
+                const date = new Date();
+                date.setMonth(date.getMonth() - (5 - idx));
+                return {
+                    date: date.toISOString().split('T')[0],
+                    price: Math.round(priceValINR * (1 + (Math.random() * 0.2 - 0.1)))
+                };
+            })
         });
     }
 

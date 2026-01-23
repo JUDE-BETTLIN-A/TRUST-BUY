@@ -1,382 +1,369 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { TopNavbar } from '@/components/TopNavbar';
+import { useRouter } from 'next/navigation';
+import { Product } from '@/lib/mock-scraper';
+
+// Simulated specs for demo (in real app, these would come from scraping)
+const generateSpecs = (product: Product) => {
+  const brands = ['Samsung', 'Apple', 'Google', 'Sony', 'LG', 'Dell', 'HP'];
+  const displays = ['6.7" OLED 120Hz', '6.1" Super Retina XDR', '7.6" Dynamic AMOLED', '6.5" LCD 90Hz', '15.6" IPS FHD'];
+  const processors = ['Snapdragon 8 Gen 3', 'A17 Pro', 'Google Tensor G3', 'MediaTek Dimensity 9000', 'Intel Core i7'];
+  const warranties = ['1 Year Mfg', '2 Years Extended', '1 Year AppleCare+ Opt', '6 Months Seller'];
+  const deliveries = ['Tomorrow', 'Oct 25-28', 'Free 2-Day', 'Standard 5-7 Days'];
+
+  const hash = product.title.length + product.price.length;
+
+  return {
+    display: displays[hash % displays.length],
+    processor: processors[(hash + 1) % processors.length],
+    warranty: warranties[(hash + 2) % warranties.length],
+    delivery: deliveries[(hash + 3) % deliveries.length],
+  };
+};
 
 export default function ComparePage() {
-  const [removedItems, setRemovedItems] = useState<number[]>([]);
+  const router = useRouter();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRemove = (index: number) => {
-    setRemovedItems([...removedItems, index]);
+  useEffect(() => {
+    // Load compared products from localStorage
+    const stored = localStorage.getItem('trustbuy_compare');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setProducts(parsed);
+      } catch (e) {
+        console.error("Failed to parse compare data", e);
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  const removeProduct = (id: string) => {
+    const updated = products.filter(p => p.id !== id);
+    setProducts(updated);
+    localStorage.setItem('trustbuy_compare', JSON.stringify(updated));
   };
 
-  const isRemoved = (index: number) => removedItems.includes(index);
+  const clearAll = () => {
+    setProducts([]);
+    localStorage.removeItem('trustbuy_compare');
+  };
 
-  return (
-    <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark font-display text-text-main dark:text-text-main-dark transition-colors duration-300">
+  // Find the best product (highest rating)
+  const bestProductId = products.length > 0
+    ? products.reduce((best, p) => p.rating > best.rating ? p : best, products[0]).id
+    : null;
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumbs & Heading */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-            <Link href="/home" className="hover:text-primary">Home</Link>
-            <span className="text-gray-300 dark:text-gray-600">/</span>
-            <Link href="#" className="hover:text-primary">Electronics</Link>
-            <span className="text-gray-300 dark:text-gray-600">/</span>
-            <span className="text-gray-900 dark:text-white font-medium">Headphones</span>
-          </div>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-gray-900 dark:text-white">Comparing {3 - removedItems.length} Items</h1>
-              <p className="text-gray-500 dark:text-gray-400 max-w-xl">
-                Unbiased analysis based on price, trust score, and long-term value.
-              </p>
+  if (loading) {
+    return (
+      <main className="flex-1 h-full overflow-y-auto bg-background-light dark:bg-background-dark p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64 mb-4"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-96 mb-8"></div>
+            <div className="grid grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-96 bg-gray-200 dark:bg-gray-700 rounded-2xl"></div>
+              ))}
             </div>
-            <div className="flex gap-3">
-              <button className="px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                <span className="material-symbols-outlined text-[18px]">share</span>
-                Share
-              </button>
-              <button className="px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px]">add</span>
-                Add Product
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Sticky Comparison Header (Product Cards) */}
-        <div className="sticky top-[64px] z-40 pb-4 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm -mx-6 px-6 border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm transition-all duration-300">
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-6 items-end pt-4">
-            {/* Label Column Header */}
-            <div className="hidden md:flex flex-col justify-end pb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Attributes</span>
-            </div>
-
-            {/* Product 1 */}
-            {!isRemoved(0) && (
-              <div className="relative group p-4 rounded-xl bg-white dark:bg-card-dark border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
-                <button onClick={() => handleRemove(0)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-                <div className="h-32 w-full mb-3 flex items-center justify-center p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
-                  <Image
-                    className="max-h-full object-contain mix-blend-multiply dark:mix-blend-normal"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJXffKja6PWf2H4mAYaKgO7wZx5GXd8KS4klev6xCigsuUKOhIkK4rUmA3WIrYVVwl_oKMXP32YgJS8-Qc4B_YZ7qZ_bIhC7ePJkp4oeseJAKvmIlUCZY9tAdfKnBeVEnezgp8BY9RInemQZai1DyGxwUVRxamJflD4jtrQ6wLXtCup9MYgAyneAwaKsDvhDdElA8y9kNQ4XVgzD15ZTPJsEvyIU1coCSUILPA2HpPUInHAAjVHaGo5tYt5ZmremPAR95iy8KzOFE"
-                    alt="Sony WH-1000XM5 Silver"
-                    width={120}
-                    height={120}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-bold text-lg leading-tight text-gray-900 dark:text-white">Sony WH-1000XM5</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-gray-900 dark:text-white">$348</span>
-                    <span className="text-xs text-gray-500 line-through">$399</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {isRemoved(0) && <div className="hidden md:block"></div>}
-
-            {/* Product 2 (Best Value) */}
-            {!isRemoved(1) && (
-              <div className="relative group p-4 rounded-xl bg-white dark:bg-card-dark border-2 border-primary/50 shadow-glow transition-all hover:-translate-y-1">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black uppercase tracking-wider py-1 px-3 rounded-full shadow-sm z-10">
-                  Top Choice
-                </div>
-                <button onClick={() => handleRemove(1)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-                <div className="h-32 w-full mb-3 flex items-center justify-center p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
-                  <Image
-                    className="max-h-full object-contain mix-blend-multiply dark:mix-blend-normal"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhk_ePdmeFjBrfqG_aDuCuZ-1l3yPxAEt13cH9d4uhztZM0gwTxMZjFGiZuO56qUYgfcXI0w3l7uss0MnxB6_-R5zj2nY2uRlyG9VJMO8d6uHV3Lyt8yjhG6OnAPC8o6jcvk6mUvqBpudl2IjuQwZT9DvYce4E2sib-BeSSvljYtI_yvYOD156vvmeNXHSCXR4VCyG9-ZJeYM2fN4VJR2NxRYFK2_znDMFxNxLtFjNXq74Bhk8WODWdio6qN77VQ6m1T3l4IHMiwk"
-                    alt="Sony WH-1000XM5 Black"
-                    width={120}
-                    height={120}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-bold text-lg leading-tight text-gray-900 dark:text-white">Sony WH-1000XM5 (Intl)</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-primary">$315</span>
-                    <span className="text-xs text-green-600 font-medium">-15% drop</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {isRemoved(1) && <div className="hidden md:block"></div>}
-
-            {/* Product 3 */}
-            {!isRemoved(2) && (
-              <div className="relative group p-4 rounded-xl bg-white dark:bg-card-dark border border-gray-100 dark:border-gray-700 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
-                <button onClick={() => handleRemove(2)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-                <div className="h-32 w-full mb-3 flex items-center justify-center p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
-                  <Image
-                    className="max-h-full object-contain mix-blend-multiply dark:mix-blend-normal"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDPKr6Kj-q-42Kkj9o6ns2yah8scMmrwuXjJj1xJzYtP9u0CuERvxe_9n-HWy7u8jtnWlQMkg54LIQkid2T7juooKds_lhqsAc-lEDx2MwF23uXt4SvuV4Ata5S5Q_oFelku1VcakekUEJDsaI86pvrozgKEqNRQJwaZlSUQDYm5A7STD-qcMf9EzfbGnYK2ywAOuV_hxLN13-t5TOPs1LJDxnnq3h9dZVMezZGTmICMbT5QbnxgHnddpX9gRY-bzHN4oT1nNKEiM"
-                    alt="Sony WH-1000XM5 Refurbished"
-                    width={120}
-                    height={120}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-bold text-lg leading-tight text-gray-900 dark:text-white">Sony WH-1000XM5 (Refurb)</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-gray-900 dark:text-white">$279</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {isRemoved(2) && <div className="hidden md:block"></div>}
-
-          </div>
-        </div>
-
-        {/* Comparison Table Body */}
-        <div className="mt-4 space-y-px bg-gray-200 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-b-xl overflow-hidden">
-          {/* Row: Trust Score */}
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-px bg-gray-200 dark:bg-gray-800">
-            <div className="bg-white dark:bg-card-dark p-4 flex items-center font-medium text-sm text-gray-500 dark:text-gray-400">
-              <span className="material-symbols-outlined mr-2 text-primary text-[20px]">verified_user</span>
-              Trust Score
-            </div>
-
-            {!isRemoved(0) && (
-              <div className="bg-white dark:bg-card-dark p-4 flex flex-col justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-primary/5 pointer-events-none"></div>
-                <div className="flex items-center gap-2 mb-1 relative z-10">
-                  <div className="w-16 bg-gray-200 rounded-full h-2 dark:bg-gray-700 overflow-hidden">
-                    <div className="bg-primary h-2 rounded-full shadow-[0_0_10px_#4bd8e2]" style={{ width: '98%' }}></div>
-                  </div>
-                  <span className="text-sm font-bold text-primary">9.8</span>
-                </div>
-                <span className="text-xs text-primary font-medium relative z-10">Top Rated</span>
-              </div>
-            )}
-            {isRemoved(0) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(1) && (
-              <div className="bg-white dark:bg-card-dark p-4 flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-16 bg-gray-200 rounded-full h-2 dark:bg-gray-700 overflow-hidden">
-                    <div className="bg-yellow-400 h-2 rounded-full" style={{ width: '84%' }}></div>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">8.4</span>
-                </div>
-                <span className="text-xs text-gray-500">Very Good</span>
-              </div>
-            )}
-            {isRemoved(1) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(2) && (
-              <div className="bg-white dark:bg-card-dark p-4 flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-16 bg-gray-200 rounded-full h-2 dark:bg-gray-700 overflow-hidden">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '92%' }}></div>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">9.2</span>
-                </div>
-                <span className="text-xs text-gray-500">Certified</span>
-              </div>
-            )}
-            {isRemoved(2) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-          </div>
-
-          {/* Row: Seller */}
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-px bg-gray-200 dark:bg-gray-800">
-            <div className="bg-white dark:bg-card-dark p-4 flex items-center font-medium text-sm text-gray-500 dark:text-gray-400">
-              Seller
-            </div>
-
-            {!isRemoved(0) && (
-              <div className="bg-white dark:bg-card-dark p-4 flex items-center gap-3 relative">
-                <div className="absolute inset-0 bg-primary/5 pointer-events-none"></div>
-                <div className="size-8 rounded-full bg-blue-50 flex items-center justify-center text-xs font-bold text-blue-600">BB</div>
-                <div className="text-sm relative z-10">
-                  <p className="font-semibold text-gray-900 dark:text-white">BestBuy</p>
-                  <p className="text-xs text-gray-500">Pickup Today</p>
-                </div>
-              </div>
-            )}
-            {isRemoved(0) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(1) && (
-              <div className="bg-white dark:bg-card-dark p-4 flex items-center gap-3">
-                <div className="size-8 rounded-full bg-orange-50 flex items-center justify-center text-xs font-bold text-orange-600">GW</div>
-                <div className="text-sm">
-                  <p className="font-semibold text-gray-900 dark:text-white">GadgetWorld</p>
-                  <p className="text-xs text-gray-500">eBay Store</p>
-                </div>
-              </div>
-            )}
-            {isRemoved(1) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(2) && (
-              <div className="bg-white dark:bg-card-dark p-4 flex items-center gap-3">
-                <div className="size-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">Amz</div>
-                <div className="text-sm">
-                  <p className="font-semibold text-gray-900 dark:text-white">Amazon</p>
-                  <p className="text-xs text-gray-500">Renewed</p>
-                </div>
-              </div>
-            )}
-            {isRemoved(2) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-          </div>
-
-          {/* Row: Specs - Condition */}
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-px bg-gray-200 dark:bg-gray-800 group/row">
-            <div className="bg-white dark:bg-card-dark p-4 flex items-center justify-between font-medium text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-              <span>Condition</span>
-              <span className="material-symbols-outlined text-[16px] opacity-0 group-hover/row:opacity-100 transition-opacity">expand_more</span>
-            </div>
-
-            {!isRemoved(0) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200 relative">
-                <div className="absolute inset-0 bg-primary/5 pointer-events-none"></div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                  Brand New
-                </span>
-              </div>
-            )}
-            {isRemoved(0) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(1) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                  New (Intl)
-                </span>
-              </div>
-            )}
-            {isRemoved(1) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(2) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                  Refurbished
-                </span>
-              </div>
-            )}
-            {isRemoved(2) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-          </div>
-
-          {/* Row: Warranty (Expandable) */}
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-px bg-gray-200 dark:bg-gray-800 group/row">
-            <div className="bg-white dark:bg-card-dark p-4 flex items-center justify-between font-medium text-sm text-gray-500 dark:text-gray-400">
-              Warranty
-            </div>
-
-            {!isRemoved(0) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200 relative">
-                <div className="absolute inset-0 bg-primary/5 pointer-events-none"></div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-primary">1 Year Sony</span>
-                  <span className="material-symbols-outlined text-[14px] text-primary">verified</span>
-                </div>
-              </div>
-            )}
-            {isRemoved(0) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(1) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200">
-                <div className="flex items-center gap-1 text-orange-600">
-                  <span className="material-symbols-outlined text-[14px]">warning</span>
-                  <span>No US Mfg.</span>
-                </div>
-              </div>
-            )}
-            {isRemoved(1) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(2) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200">
-                2-Year Allstate
-              </div>
-            )}
-            {isRemoved(2) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-          </div>
-
-          {/* Row: Delivery */}
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-px bg-gray-200 dark:bg-gray-800">
-            <div className="bg-white dark:bg-card-dark p-4 flex items-center font-medium text-sm text-gray-500 dark:text-gray-400">
-              Delivery
-            </div>
-
-            {!isRemoved(0) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200 relative">
-                <div className="absolute inset-0 bg-primary/5 pointer-events-none"></div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                  Tomorrow
-                </span>
-              </div>
-            )}
-            {isRemoved(0) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(1) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                  Oct 28 - Nov 2
-                </span>
-              </div>
-            )}
-            {isRemoved(1) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-
-            {!isRemoved(2) && (
-              <div className="bg-white dark:bg-card-dark p-4 text-sm text-gray-900 dark:text-gray-200">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                  Tue, Oct 24
-                </span>
-              </div>
-            )}
-            {isRemoved(2) && <div className="bg-white dark:bg-card-dark hidden md:block"></div>}
-          </div>
-        </div>
-
-        {/* Sticky Bottom CTA (Mobile/Desktop) */}
-        <div className="sticky bottom-4 mt-6 z-30">
-          <div className="grid grid-cols-[160px_1fr] md:grid-cols-[240px_1fr_1fr_1fr] gap-6">
-            <div className="hidden md:block"></div> {/* Spacer for labels */}
-
-            {!isRemoved(0) && (
-              <div className="flex flex-col gap-2">
-                <button className="w-full py-3 px-4 bg-primary hover:bg-primary-dark text-white dark:text-gray-900 font-bold rounded-xl shadow-[0_4px_14px_0_rgba(75,216,226,0.39)] transition-transform active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group">
-                  <span className="relative z-10 flex items-center gap-2">Buy Now <span className="material-symbols-outlined text-[18px]">shopping_cart</span></span>
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                </button>
-                <p className="text-center text-xs text-primary font-medium">Best Value • BestBuy</p>
-              </div>
-            )}
-            {isRemoved(0) && <div className="hidden md:block"></div>}
-
-            {!isRemoved(1) && (
-              <div className="flex flex-col gap-2">
-                <button className="w-full py-3 px-4 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-gray-900 font-bold rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-2">
-                  <span>View Deal</span>
-                  <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                </button>
-                <p className="text-center text-xs text-gray-500">GadgetWorld</p>
-              </div>
-            )}
-            {isRemoved(1) && <div className="hidden md:block"></div>}
-
-            {!isRemoved(2) && (
-              <div className="flex flex-col gap-2">
-                <button className="w-full py-3 px-4 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-gray-900 font-bold rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-2">
-                  <span>View Deal</span>
-                  <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                </button>
-                <p className="text-center text-xs text-gray-500">Amazon</p>
-              </div>
-            )}
-            {isRemoved(2) && <div className="hidden md:block"></div>}
-
           </div>
         </div>
       </main>
-    </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <main className="flex-1 h-full overflow-y-auto bg-background-light dark:bg-background-dark p-8">
+        <div className="max-w-7xl mx-auto text-center py-20">
+          <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">compare</span>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Products to Compare</h1>
+          <p className="text-gray-500 mb-6">Select products from the search results to compare them side by side.</p>
+          <button
+            onClick={() => router.push('/search?q=smartphones')}
+            className="bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors"
+          >
+            Browse Products
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1 h-full overflow-y-auto bg-background-light dark:bg-background-dark">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+          <Link href="/home" className="hover:text-primary">Home</Link>
+          <span>/</span>
+          <Link href="/search" className="hover:text-primary">Search</Link>
+          <span>/</span>
+          <span className="text-gray-900 dark:text-white font-medium">Compare</span>
+        </nav>
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Comparing {products.length} Items
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Unbiased analysis based on price, trust score, and long-term value.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:border-primary hover:text-primary transition-colors">
+              <span className="material-symbols-outlined text-sm">share</span>
+              Share
+            </button>
+            <button
+              onClick={clearAll}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm">delete</span>
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        {/* Product Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {products.map((product) => {
+            const isBest = product.id === bestProductId;
+            return (
+              <div
+                key={product.id}
+                className={`relative bg-white dark:bg-surface-dark rounded-2xl border-2 p-6 transition-all ${isBest
+                    ? 'border-primary shadow-lg shadow-primary/10'
+                    : 'border-gray-100 dark:border-gray-800'
+                  }`}
+              >
+                {/* Best Choice Badge */}
+                {isBest && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wide">
+                    Top Choice
+                  </div>
+                )}
+
+                {/* Remove Button */}
+                <button
+                  onClick={() => removeProduct(product.id)}
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+
+                {/* Product Image */}
+                <div className="h-40 flex items-center justify-center mb-4">
+                  <Image
+                    src={product.image}
+                    alt={product.title}
+                    width={150}
+                    height={150}
+                    className="max-h-full object-contain"
+                  />
+                </div>
+
+                {/* Product Info */}
+                <h3 className="font-bold text-gray-900 dark:text-white text-center line-clamp-2 mb-2">
+                  {product.title}
+                </h3>
+                <div className="text-center">
+                  <span className={`text-2xl font-bold ${isBest ? 'text-primary' : 'text-gray-900 dark:text-white'}`}>
+                    {product.price}
+                  </span>
+                  {isBest && (
+                    <span className="ml-2 text-xs text-green-500 font-medium">Best Value</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Add More Card */}
+          {products.length < 4 && (
+            <button
+              onClick={() => router.back()}
+              className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-gray-400 hover:border-primary hover:text-primary transition-colors min-h-[300px]"
+            >
+              <span className="material-symbols-outlined text-4xl">add_circle</span>
+              <span className="font-medium">Add Product</span>
+            </button>
+          )}
+        </div>
+
+        {/* Attributes Comparison Table */}
+        <div className="bg-white dark:bg-surface-dark rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide">Attributes</h2>
+          </div>
+
+          {/* Trust Score Row */}
+          <div className="grid grid-cols-[200px_1fr] border-b border-gray-100 dark:border-gray-800">
+            <div className="px-6 py-4 flex items-center gap-2 bg-gray-50 dark:bg-white/5">
+              <span className="material-symbols-outlined text-primary text-sm">verified</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Trust Score</span>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
+              {products.map((product) => (
+                <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${product.rating >= 9 ? 'bg-green-500' :
+                            product.rating >= 8 ? 'bg-primary' : 'bg-yellow-500'
+                          }`}
+                        style={{ width: `${product.rating * 10}%` }}
+                      ></div>
+                    </div>
+                    <span className="font-bold text-gray-900 dark:text-white">{product.rating}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{product.trustScoreBadge}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Seller Row */}
+          <div className="grid grid-cols-[200px_1fr] border-b border-gray-100 dark:border-gray-800">
+            <div className="px-6 py-4 flex items-center gap-2 bg-gray-50 dark:bg-white/5">
+              <span className="material-symbols-outlined text-gray-400 text-sm">storefront</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Seller</span>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
+              {products.map((product) => (
+                <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">
+                      {product.storeName.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{product.storeName}</p>
+                      <p className="text-xs text-gray-500">Free Shipping</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Display Row */}
+          <div className="grid grid-cols-[200px_1fr] border-b border-gray-100 dark:border-gray-800">
+            <div className="px-6 py-4 flex items-center gap-2 bg-gray-50 dark:bg-white/5">
+              <span className="material-symbols-outlined text-gray-400 text-sm">smartphone</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Display</span>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
+              {products.map((product) => {
+                const specs = generateSpecs(product);
+                return (
+                  <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
+                    <p className="font-medium text-gray-900 dark:text-white">{specs.display.split(' ')[0]}</p>
+                    <p className="text-xs text-gray-500">{specs.display.split(' ').slice(1).join(' ')}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Processor Row */}
+          <div className="grid grid-cols-[200px_1fr] border-b border-gray-100 dark:border-gray-800">
+            <div className="px-6 py-4 flex items-center gap-2 bg-gray-50 dark:bg-white/5">
+              <span className="material-symbols-outlined text-gray-400 text-sm">memory</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Processor</span>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
+              {products.map((product) => {
+                const specs = generateSpecs(product);
+                return (
+                  <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
+                    <p className="font-medium text-gray-900 dark:text-white">{specs.processor}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Warranty Row */}
+          <div className="grid grid-cols-[200px_1fr] border-b border-gray-100 dark:border-gray-800">
+            <div className="px-6 py-4 flex items-center gap-2 bg-gray-50 dark:bg-white/5">
+              <span className="material-symbols-outlined text-gray-400 text-sm">verified_user</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Warranty</span>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
+              {products.map((product) => {
+                const specs = generateSpecs(product);
+                const isExtended = specs.warranty.includes('Extended');
+                return (
+                  <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
+                    <p className={`font-medium ${isExtended ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
+                      {specs.warranty}
+                      {isExtended && <span className="ml-1">✓</span>}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Delivery Row */}
+          <div className="grid grid-cols-[200px_1fr]">
+            <div className="px-6 py-4 flex items-center gap-2 bg-gray-50 dark:bg-white/5">
+              <span className="material-symbols-outlined text-gray-400 text-sm">local_shipping</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Delivery</span>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
+              {products.map((product) => {
+                const specs = generateSpecs(product);
+                const isFast = specs.delivery === 'Tomorrow' || specs.delivery.includes('2-Day');
+                return (
+                  <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
+                    {isFast ? (
+                      <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
+                        {specs.delivery}
+                      </span>
+                    ) : (
+                      <p className="text-gray-900 dark:text-white">{specs.delivery}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+          {products.map((product) => {
+            const isBest = product.id === bestProductId;
+            return (
+              <div key={product.id} className="flex flex-col gap-2">
+                <a
+                  href={product.link || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`w-full py-3 rounded-xl font-bold text-center flex items-center justify-center gap-2 transition-all ${isBest
+                      ? 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
+                      : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90'
+                    }`}
+                >
+                  {isBest ? 'Buy Now' : 'View Deal'}
+                  <span className="material-symbols-outlined text-sm">{isBest ? 'shopping_cart' : 'open_in_new'}</span>
+                </a>
+                <p className="text-xs text-center text-gray-500">
+                  {isBest ? 'Best Value • ' : ''}{product.storeName}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </main>
   );
 }

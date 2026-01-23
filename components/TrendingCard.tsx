@@ -30,7 +30,11 @@ export function TrendingCard({ product }: TrendingCardProps) {
                         src={product.image}
                         width={200}
                         height={160}
-                        onError={() => setIsVisible(false)}
+                        src={product.image || "https://placehold.co/200x200?text=No+Image"}
+                        width={200}
+                        height={160}
+                    // onError handled by Next.js Image automatically showing alt text if src fails hard, 
+                    // or we could swap src, but hiding the card reduces the count which we want to avoid.
                     />
                 </div>
                 <div className="absolute bottom-3 left-3 bg-white/90 dark:bg-black/50 backdrop-blur-sm px-2 py-1 rounded-lg border border-gray-100 dark:border-gray-700">
