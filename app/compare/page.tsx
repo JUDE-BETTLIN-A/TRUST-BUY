@@ -4,7 +4,23 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Product } from '@/lib/mock-scraper';
+import { getAIComparison, getAISpecs } from './actions';
+import { getUserItem, setUserItem, removeUserItem, STORAGE_KEYS } from '@/lib/user-storage';
+
+// Types for AI comparison
+interface AIComparisonResult {
+  winner: string;
+  summary: string;
+  categories: {
+    name: string;
+    product1Score: number;
+    product2Score: number;
+    verdict: string;
+  }[];
+  recommendation: string;
+}
 
 // Simulated specs for demo (in real app, these would come from scraping)
 const generateSpecs = (product: Product) => {
@@ -26,12 +42,19 @@ const generateSpecs = (product: Product) => {
 
 export default function ComparePage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userId = session?.user?.email || session?.user?.id;
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 🤖 AI Comparison State
+  const [aiComparison, setAIComparison] = useState<AIComparisonResult | null>(null);
+  const [aiLoading, setAILoading] = useState(false);
+
   useEffect(() => {
-    // Load compared products from localStorage
-    const stored = localStorage.getItem('trustbuy_compare');
+    // Load compared products from localStorage (user-specific)
+    const stored = getUserItem(STORAGE_KEYS.COMPARE, userId);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -41,17 +64,48 @@ export default function ComparePage() {
       }
     }
     setLoading(false);
-  }, []);
+  }, [userId]);
+
+  // 🤖 Fetch AI Comparison when products change
+  useEffect(() => {
+    const fetchAIAnalysis = async () => {
+      if (products.length >= 2) {
+        setAILoading(true);
+        try {
+          const result = await getAIComparison(
+            products.slice(0, 2).map(p => ({
+              title: p.title,
+              price: p.price,
+              specs: p.specs
+            }))
+          );
+          if (result) {
+            setAIComparison(result);
+          }
+        } catch (e) {
+          console.error("AI comparison failed:", e);
+        } finally {
+          setAILoading(false);
+        }
+      }
+    };
+
+    if (products.length >= 2) {
+      fetchAIAnalysis();
+    }
+  }, [products]);
 
   const removeProduct = (id: string) => {
     const updated = products.filter(p => p.id !== id);
     setProducts(updated);
-    localStorage.setItem('trustbuy_compare', JSON.stringify(updated));
+    setUserItem(STORAGE_KEYS.COMPARE, JSON.stringify(updated), userId);
+    setAIComparison(null); // Reset AI comparison
   };
 
   const clearAll = () => {
     setProducts([]);
-    localStorage.removeItem('trustbuy_compare');
+    removeUserItem(STORAGE_KEYS.COMPARE, userId);
+    setAIComparison(null);
   };
 
   // Find the best product (highest rating)
@@ -140,8 +194,8 @@ export default function ComparePage() {
               <div
                 key={product.id}
                 className={`relative bg-white dark:bg-surface-dark rounded-2xl border-2 p-6 transition-all ${isBest
-                    ? 'border-primary shadow-lg shadow-primary/10'
-                    : 'border-gray-100 dark:border-gray-800'
+                  ? 'border-primary shadow-lg shadow-primary/10'
+                  : 'border-gray-100 dark:border-gray-800'
                   }`}
               >
                 {/* Best Choice Badge */}
@@ -198,6 +252,81 @@ export default function ComparePage() {
           )}
         </div>
 
+        {/* 🤖 AI Comparison Analysis Section */}
+        {products.length >= 2 && (
+          <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl border border-purple-200 dark:border-purple-800 p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                <span className="material-symbols-outlined text-white">psychology</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">AI Comparison Analysis</h2>
+                <p className="text-sm text-gray-500">Intelligent insights powered by AI</p>
+              </div>
+            </div>
+
+            {aiLoading ? (
+              <div className="flex items-center gap-3 py-8 justify-center">
+                <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-gray-600 dark:text-gray-400">Analyzing products...</span>
+              </div>
+            ) : aiComparison ? (
+              <div className="space-y-4">
+                {/* Winner Banner */}
+                <div className="bg-white dark:bg-surface-dark rounded-xl p-4 border border-purple-100 dark:border-purple-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-1">🏆 AI Recommendation</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">{aiComparison.winner}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500">{aiComparison.summary}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category Scores */}
+                {aiComparison.categories && aiComparison.categories.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {aiComparison.categories.map((cat, idx) => (
+                      <div key={idx} className="bg-white dark:bg-surface-dark rounded-lg p-3 border border-gray-100 dark:border-gray-800">
+                        <p className="text-xs font-bold text-gray-500 mb-2">{cat.name}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-purple-500 rounded-full"
+                              style={{ width: `${cat.product1Score * 10}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{cat.product1Score}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full"
+                              style={{ width: `${cat.product2Score * 10}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{cat.product2Score}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">{cat.verdict}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recommendation */}
+                <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl p-4 text-white">
+                  <p className="text-sm font-medium opacity-90">💡 Our Advice</p>
+                  <p className="font-bold">{aiComparison.recommendation}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">Unable to generate AI analysis. Please try again.</p>
+            )}
+          </div>
+        )}
+
         {/* Attributes Comparison Table */}
         <div className="bg-white dark:bg-surface-dark rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
@@ -217,7 +346,7 @@ export default function ComparePage() {
                     <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${product.rating >= 9 ? 'bg-green-500' :
-                            product.rating >= 8 ? 'bg-primary' : 'bg-yellow-500'
+                          product.rating >= 8 ? 'bg-primary' : 'bg-yellow-500'
                           }`}
                         style={{ width: `${product.rating * 10}%` }}
                       ></div>
@@ -349,8 +478,8 @@ export default function ComparePage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`w-full py-3 rounded-xl font-bold text-center flex items-center justify-center gap-2 transition-all ${isBest
-                      ? 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
-                      : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90'
+                    ? 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
+                    : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90'
                     }`}
                 >
                   {isBest ? 'Buy Now' : 'View Deal'}

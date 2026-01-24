@@ -59,7 +59,7 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         return array;
     };
 
-    const TRENDING_ITEMS = shuffle([
+    const TRENDING_ITEMS = [
         "Sony WH-1000XM5 Wireless Headphones",
         "Apple MacBook Air M2",
         "Samsung 65\" Class OLED 4K Smart TV",
@@ -69,8 +69,18 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         "iPad Air 11-inch (M2)",
         "KitchenAid Artisan Series 5-Qt Stand Mixer",
         "Nespresso Vertuo Plus Coffee and Espresso Maker by De'Longhi",
-        "Instant Pot Duo 7-in-1 Electric Pressure Cooker"
-    ]);
+        "Instant Pot Duo 7-in-1 Electric Pressure Cooker",
+        "iPhone 15 Pro Max 256GB",
+        "Samsung Galaxy S24 Ultra",
+        "MacBook Air M3",
+        "Apple Watch Series 9",
+        "Bose QuietComfort Earbuds",
+        "Dell XPS 15 Laptop",
+        "LG 1.5 Ton Split AC",
+        "Samsung 253L Refrigerator",
+        "Philips Air Fryer XL",
+        "Dyson V12 Vacuum Cleaner"
+    ];
 
     const TRENDING_IMAGES: Record<string, string> = {
         "Sony WH-1000XM5 Wireless Headphones": "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=500&auto=format&fit=crop&q=60",
@@ -82,7 +92,17 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         "iPad Air 11-inch (M2)": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=500&auto=format&fit=crop&q=60",
         "KitchenAid Artisan Series 5-Qt Stand Mixer": "https://images.unsplash.com/photo-1594385208974-2e75f8d7bb48?w=500&auto=format&fit=crop&q=60",
         "Nespresso Vertuo Plus Coffee and Espresso Maker by De'Longhi": "https://images.unsplash.com/photo-1517036662718-4a1c5d070104?w=500&auto=format&fit=crop&q=60",
-        "Instant Pot Duo 7-in-1 Electric Pressure Cooker": "https://images.unsplash.com/photo-1588645258673-424fa752f404?w=500&auto=format&fit=crop&q=60"
+        "Instant Pot Duo 7-in-1 Electric Pressure Cooker": "https://images.unsplash.com/photo-1588645258673-424fa752f404?w=500&auto=format&fit=crop&q=60",
+        "iPhone 15 Pro Max 256GB": "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=500&auto=format&fit=crop&q=60",
+        "Samsung Galaxy S24 Ultra": "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=500&auto=format&fit=crop&q=60",
+        "MacBook Air M3": "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=500&auto=format&fit=crop&q=60",
+        "Apple Watch Series 9": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60",
+        "Bose QuietComfort Earbuds": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60",
+        "Dell XPS 15 Laptop": "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=500&auto=format&fit=crop&q=60",
+        "LG 1.5 Ton Split AC": "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=60",
+        "Samsung 253L Refrigerator": "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=60",
+        "Philips Air Fryer XL": "https://images.unsplash.com/photo-1517036662718-4a1c5d070104?w=500&auto=format&fit=crop&q=60",
+        "Dyson V12 Vacuum Cleaner": "https://images.unsplash.com/photo-1558317374-a3594743e488?w=500&auto=format&fit=crop&q=60"
     };
 
     const KEYWORD_IMAGES: Record<string, string> = {
@@ -140,72 +160,78 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         'auto': ['Vega Helmet Full Face', 'Amkette Car Mobile Holder', 'Bosch Tyre Inflator', 'Wakefit Car Seat Cushion', 'Rain-X Windshield Cleaner', 'JBL Car Speakers', 'Autofurnish Car Cover', 'CTEK Battery Charger']
     };
 
-    for (let i = 0; i < count; i++) {
-        const store = STORES[Math.floor(Math.random() * STORES.length)];
-        const priceValUSD = getRandomInt(50, 1500); // Base value
-        const priceValINR = priceValUSD * 84; // Approx conversion
-        // Format as Indian Rupee
-        const formattedPrice = new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0
-        }).format(priceValINR);
+    // Generate random offset once for trending products to ensure different products on each refresh
+        const randomOffset = isTrending ? Math.floor(Math.random() * TRENDING_ITEMS.length) : 0;
 
-        // Generate Original Price for Discounts
-        const discountPct = Math.random() < 0.7 ? (Math.random() * 0.4) + 0.05 : 0; // 70% chance of discount, 5-45%
-        let formattedOriginalPrice: string | undefined = undefined;
-        if (discountPct > 0) {
-            const originalVal = priceValINR * (1 + discountPct);
-            formattedOriginalPrice = new Intl.NumberFormat('en-IN', {
-                style: 'currency',
-                currency: 'INR',
-                maximumFractionDigits: 0
-            }).format(originalVal);
-        }
-
-        const isBestPrice = i === 0 || Math.random() > 0.8;
-
-        let title = `${formattedQuery} ${i % 2 === 0 ? 'Pro' : 'Standard'} Edition - ${store} Exclusive Bundle`;
-        let image = "";
-
-        // Check if query matches a known keyword for reliable image
-        const lowerQuery = query.toLowerCase();
-        let keywordMatch = Object.keys(KEYWORD_IMAGES).find(key => lowerQuery.includes(key));
-
-        // Check if this is a category-based search (both direct and expanded queries)
-        const categoryKeywords: Record<string, string[]> = {
-            'electronics': ['electronics', 'iphone', 'samsung', 'galaxy', 'laptop', 'headphones', 'smartwatch', 'macbook', 'ipad', 'phone'],
-            'home': ['home', 'sofa', 'bed', 'mattress', 'tv', 'air conditioner', 'refrigerator', 'furniture', 'appliance'],
-            'fashion': ['fashion', 'nike', 'adidas', 't-shirt', 'jeans', 'jacket', 'shoes', 'clothing', 'shirt', 'levis'],
-            'sports': ['sports', 'cricket', 'football', 'gym', 'yoga', 'fitness', 'badminton', 'bat', 'equipment'],
-            'auto': ['auto', 'car', 'dash cam', 'tyre', 'seat cover', 'helmet', 'vehicle', 'bike']
-        };
-
-        let categoryMatch: string | undefined = undefined;
-        for (const [cat, keywords] of Object.entries(categoryKeywords)) {
-            if (keywords.some(kw => lowerQuery.includes(kw))) {
-                categoryMatch = cat;
-                break;
+        for (let i = 0; i < count; i++) {
+            const store = STORES[Math.floor(Math.random() * STORES.length)];
+            
+            // For trending products, use more realistic price ranges
+            let priceValUSD: number;
+            if (isTrending) {
+                // Trending products should have realistic prices (₹5,000 - ₹200,000)
+                priceValUSD = getRandomInt(60, 2400); // 60-2400 USD = ₹5,000 - ₹200,000
+            } else {
+                priceValUSD = getRandomInt(50, 1500); // Base value for other searches
             }
-        }
+            
+            const priceValINR = priceValUSD * 84; // Approx conversion
+            // Format as Indian Rupee manually to avoid encoding issues
+            const formattedPrice = `₹${Math.round(priceValINR).toLocaleString('en-IN')}`;
 
-        if (categoryMatch) {
-            // Use category-specific product names
-            const categoryProducts = CATEGORY_PRODUCTS[categoryMatch];
-            title = categoryProducts[i % categoryProducts.length];
-            // Find a matching image keyword from the title
-            const titleLower = title.toLowerCase();
-            const imageKey = Object.keys(KEYWORD_IMAGES).find(k => titleLower.includes(k));
-            image = imageKey ? KEYWORD_IMAGES[imageKey] : `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
-        } else if (isTrending) {
-            title = TRENDING_ITEMS[i % TRENDING_ITEMS.length];
-            image = TRENDING_IMAGES[title] || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=60";
-        } else if (keywordMatch) {
-            image = KEYWORD_IMAGES[keywordMatch];
-        } else {
-            // Use Pollinations.ai for relevant product images based on the query.
-            image = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
-        }
+            // Generate Original Price for Discounts
+            const discountPct = Math.random() < 0.7 ? (Math.random() * 0.4) + 0.05 : 0; // 70% chance of discount, 5-45%
+            let formattedOriginalPrice: string | undefined = undefined;
+            if (discountPct > 0) {
+                const originalVal = priceValINR * (1 + discountPct);
+                formattedOriginalPrice = `₹${Math.round(originalVal).toLocaleString('en-IN')}`;
+            }
+
+            const isBestPrice = i === 0 || Math.random() > 0.8;
+
+            let title = `${formattedQuery} ${i % 2 === 0 ? 'Pro' : 'Standard'} Edition - ${store} Exclusive Bundle`;
+            let image = "";
+
+            // Check if query matches a known keyword for reliable image
+            const lowerQuery = query.toLowerCase();
+            let keywordMatch = Object.keys(KEYWORD_IMAGES).find(key => lowerQuery.includes(key));
+
+            // Check if this is a category-based search (both direct and expanded queries)
+            const categoryKeywords: Record<string, string[]> = {
+                'electronics': ['electronics', 'iphone', 'samsung', 'galaxy', 'laptop', 'headphones', 'smartwatch', 'macbook', 'ipad', 'phone'],
+                'home': ['home', 'sofa', 'bed', 'mattress', 'tv', 'air conditioner', 'refrigerator', 'furniture', 'appliance'],
+                'fashion': ['fashion', 'nike', 'adidas', 't-shirt', 'jeans', 'jacket', 'shoes', 'clothing', 'shirt', 'levis'],
+                'sports': ['sports', 'cricket', 'football', 'gym', 'yoga', 'fitness', 'badminton', 'bat', 'equipment'],
+                'auto': ['auto', 'car', 'dash cam', 'tyre', 'seat cover', 'helmet', 'vehicle', 'bike']
+            };
+
+            let categoryMatch: string | undefined = undefined;
+            for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+                if (keywords.some(kw => lowerQuery.includes(kw))) {
+                    categoryMatch = cat;
+                    break;
+                }
+            }
+
+            if (categoryMatch) {
+                // Use category-specific product names
+                const categoryProducts = CATEGORY_PRODUCTS[categoryMatch];
+                title = categoryProducts[i % categoryProducts.length];
+                // Find a matching image keyword from the title
+                const titleLower = title.toLowerCase();
+                const imageKey = Object.keys(KEYWORD_IMAGES).find(k => titleLower.includes(k));
+                image = imageKey ? KEYWORD_IMAGES[imageKey] : `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
+            } else if (isTrending) {
+                // Use the pre-generated random offset to get different products on each refresh
+                const trendingIndex = (i + randomOffset) % TRENDING_ITEMS.length;
+                title = TRENDING_ITEMS[trendingIndex];
+                image = TRENDING_IMAGES[title] || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=60";
+            } else if (keywordMatch) {
+                image = KEYWORD_IMAGES[keywordMatch];
+            } else {
+                // Use Pollinations.ai for relevant product images based on the query.
+                image = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
+            }
 
         const rating = Number((Math.random() * 2.4 + 7.5).toFixed(1));
         const trustBadge = rating > 9.2 ? "Excellent" : rating > 8.5 ? "Very Good" : "Good";

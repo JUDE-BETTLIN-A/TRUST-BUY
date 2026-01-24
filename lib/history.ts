@@ -1,5 +1,7 @@
 
-// lib/history.ts
+// lib/history.ts - User-specific search history
+
+import { getUserItem, setUserItem, removeUserItem, STORAGE_KEYS } from './user-storage';
 
 export interface HistoryItem {
     id: string;
@@ -11,12 +13,10 @@ export interface HistoryItem {
     link?: string;
 }
 
-const HISTORY_KEY = 'trustbuy_search_history';
-
-export function getHistory(): HistoryItem[] {
+export function getHistory(userId?: string | null): HistoryItem[] {
     if (typeof window === 'undefined') return [];
     try {
-        const stored = localStorage.getItem(HISTORY_KEY);
+        const stored = getUserItem(STORAGE_KEYS.HISTORY, userId);
         return stored ? JSON.parse(stored) : [];
     } catch (e) {
         console.error("Failed to read history", e);
@@ -24,9 +24,9 @@ export function getHistory(): HistoryItem[] {
     }
 }
 
-export function addToHistory(item: Omit<HistoryItem, 'id' | 'timestamp'>) {
+export function addToHistory(item: Omit<HistoryItem, 'id' | 'timestamp'>, userId?: string | null) {
     if (typeof window === 'undefined') return;
-    const history = getHistory();
+    const history = getHistory(userId);
 
     // Remove duplicates (same query)
     const filtered = history.filter(h => h.query.toLowerCase() !== item.query.toLowerCase());
@@ -39,10 +39,10 @@ export function addToHistory(item: Omit<HistoryItem, 'id' | 'timestamp'>) {
 
     // Add to top, limit to 20
     const updated = [newItem, ...filtered].slice(0, 20);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    setUserItem(STORAGE_KEYS.HISTORY, JSON.stringify(updated), userId);
 }
 
-export function clearHistory() {
+export function clearHistory(userId?: string | null) {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem(HISTORY_KEY);
+    removeUserItem(STORAGE_KEYS.HISTORY, userId);
 }

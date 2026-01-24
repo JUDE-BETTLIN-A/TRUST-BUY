@@ -8,13 +8,17 @@ import { useSession } from 'next-auth/react';
 
 import { getHistory, HistoryItem } from '@/lib/history';
 import { searchProductsAction } from '../search/actions';
+import { searchProducts as searchProductsMock } from '@/lib/mock-scraper';
 import { getAlerts } from '../alerts/actions';
 import { Product } from '@/lib/mock-scraper';
 import { TrendingCard } from '@/components/TrendingCard';
+import { getUserItem, STORAGE_KEYS } from '@/lib/user-storage';
 
 export default function HomePage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const userId = session?.user?.email || session?.user?.id;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState('Electronics');
@@ -28,9 +32,9 @@ export default function HomePage() {
   const [displayName, setDisplayName] = useState(session?.user?.name || "User");
 
   useEffect(() => {
-    // Sync Display Name
+    // Sync Display Name (user-specific)
     const updateProfile = () => {
-      const savedName = localStorage.getItem('trustbuy_user_name');
+      const savedName = getUserItem(STORAGE_KEYS.NAME, userId);
       if (savedName) {
         setDisplayName(savedName);
       } else if (session?.user?.name) {
@@ -40,8 +44,8 @@ export default function HomePage() {
     updateProfile();
     window.addEventListener('trustbuy_profile_update', updateProfile);
 
-    // Load last 3 history items
-    const h = getHistory();
+    // Load last 3 history items (user-specific)
+    const h = getHistory(userId);
     setHistory(h.slice(0, 3));
 
     // Fetch Dashboard Data if logged in
@@ -51,18 +55,60 @@ export default function HomePage() {
 
       }).catch(err => console.error("Failed to load alerts", err));
 
-      // Mock basket count (replace with real getBasket() later)
-      setBasketCount(0);
+      // Get basket count (user-specific)
+      const basketData = getUserItem(STORAGE_KEYS.BASKET, userId);
+      const basket = basketData ? JSON.parse(basketData) : [];
+      setBasketCount(basket.length);
     }
 
     const fetchTrending = async () => {
+      const shuffleArray = (arr: Product[]) => {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
+
+      // Movie filter keywords accessible to both try/catch
+      const movieKeywords = ['movie','movies','film','dvd','blu-ray','bluray','box set','boxset','collection','soundtrack'];
+      const isMovie = (p: Product) => {
+        const t = (p.title || '').toLowerCase();
+        const c = (p.category || '').toLowerCase();
+        return movieKeywords.some(k => t.includes(k) || c.includes(k));
+      };
+
       try {
-        // Use a generic query to get diverse results including Home, Auto, etc.
-        const products = await searchProductsAction("trending best selling products", 1);
-        // Show exactly 4 products as requested
-        setTrendingProducts(products.slice(0, 4));
+        // Use a specific trending query to ensure we get trending products
+        const products = await searchProductsAction("trending", 1);
+
+        // Shuffle results to show different products on each refresh, then filter out movie-like items
+        const shuffled = shuffleArray(products);
+        let trendingProducts = shuffled.filter(p => !isMovie(p));
+
+        // If we don't have enough non-movie results, fall back to mock data and merge (also shuffled)
+        if (trendingProducts.length < 4) {
+          const fallback = await searchProductsMock("trending best selling products", 1);
+          const fallbackFiltered = shuffleArray(fallback).filter(p => !isMovie(p));
+          trendingProducts = [...trendingProducts, ...fallbackFiltered].slice(0, 4);
+        } else {
+          trendingProducts = trendingProducts.slice(0, 4);
+        }
+
+        console.log("Trending products loaded (after filtering movies & shuffling):", trendingProducts.length);
+        setTrendingProducts(trendingProducts);
       } catch (e) {
         console.error("Failed to load trending items", e);
+        // Fallback to mock data if real search fails
+        try {
+          const mockProducts = await searchProductsMock("trending best selling products", 1);
+          const filteredMockProducts = shuffleArray(mockProducts).filter(p => !isMovie(p));
+          setTrendingProducts(filteredMockProducts.slice(0, 4));
+        } catch (fallbackError) {
+          console.error("Fallback also failed:", fallbackError);
+          setTrendingProducts([]);
+        }
       } finally {
         setLoadingTrending(false);
       }
@@ -70,7 +116,7 @@ export default function HomePage() {
     fetchTrending();
 
     return () => window.removeEventListener('trustbuy_profile_update', updateProfile);
-  }, [session]);
+  }, [session, userId]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {

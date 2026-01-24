@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { getUserItem, setUserItem, removeUserItem, STORAGE_KEYS } from '@/lib/user-storage';
 
 interface BasketItem {
     id: string | number;
@@ -26,13 +28,16 @@ interface SavedStoryItem {
 }
 
 export default function BasketPage() {
+    const { data: session } = useSession();
+    const userId = session?.user?.email || session?.user?.id;
+
     const [basket, setBasket] = useState<BasketItem[]>([]);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
-        // Load Basket
-        const savedBasket = localStorage.getItem('trustbuy_basket');
+        // Load Basket (user-specific)
+        const savedBasket = getUserItem(STORAGE_KEYS.BASKET, userId);
         if (savedBasket) {
             try {
                 setBasket(JSON.parse(savedBasket));
@@ -40,17 +45,17 @@ export default function BasketPage() {
                 console.error("Failed to parse basket", e);
             }
         }
-    }, []);
+    }, [userId]);
 
     const removeFromBasket = (indexToRemove: number) => {
         const newBasket = basket.filter((_, index) => index !== indexToRemove);
         setBasket(newBasket);
-        localStorage.setItem('trustbuy_basket', JSON.stringify(newBasket));
+        setUserItem(STORAGE_KEYS.BASKET, JSON.stringify(newBasket), userId);
     };
 
     const clearBasket = () => {
         setBasket([]);
-        localStorage.removeItem('trustbuy_basket');
+        removeUserItem(STORAGE_KEYS.BASKET, userId);
     };
 
     const calculateTotal = () => {

@@ -48,32 +48,9 @@ export function SearchResultCard({
     priceHistory,
     specs
 }: SearchResultCardProps) {
-    const [showGraph, setShowGraph] = React.useState(false);
     const [alertLoading, setAlertLoading] = React.useState(false);
     const [alertSuccess, setAlertSuccess] = React.useState(false);
     const [isVisible, setIsVisible] = React.useState(true);
-
-    // Normalize history data for the dot visualization
-    const normalizedGraphData = React.useMemo(() => {
-        if (!priceHistory || priceHistory.length === 0) {
-            // Fallback mock data
-            return [40, 60, 45, 50, 70, 65, 55, 60, 80, 75, 60, 90, 85, 95, 100].slice(0, 15).map(h => ({
-                height: h,
-                price: Math.round(Number(price.replace(/[^0-9.]/g, '')) * (h / 100)),
-                date: 'Past'
-            }));
-        }
-        const prices = priceHistory.map(p => p.price);
-        const min = Math.min(...prices);
-        const max = Math.max(...prices);
-        const range = max - min || 1;
-
-        return priceHistory.map(p => ({
-            height: 20 + ((p.price - min) / range) * 80, // Scale 20-100
-            price: p.price,
-            date: p.date
-        }));
-    }, [priceHistory, price]);
 
     if (!isVisible) return null;
 
@@ -96,7 +73,7 @@ export function SearchResultCard({
                     <Image
                         alt={title}
                         className="w-full h-auto object-contain max-h-40 mix-blend-multiply dark:mix-blend-normal"
-                        src={image}
+                        src={image || "https://placehold.co/200x200?text=No+Image"}
                         width={200}
                         height={200}
                         onError={() => setIsVisible(false)}
@@ -142,15 +119,15 @@ export function SearchResultCard({
                         </span>
                     </div>
 
-                    {/* Graph Toggle */}
+                    {/* Price Analysis Link */}
                     <div className="mt-3">
-                        <button
-                            onClick={() => setShowGraph(!showGraph)}
-                            className="text-xs font-semibold text-primary flex items-center gap-1"
+                        <Link
+                            href={`/analysis?name=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&url=${encodeURIComponent(link || '')}&source=${encodeURIComponent(storeName)}`}
+                            className="text-xs font-semibold text-primary flex items-center gap-1 hover:text-primary/80 transition-colors"
                         >
-                            <span className="material-symbols-outlined text-sm">{showGraph ? "expand_less" : "ssid_chart"}</span>
-                            {showGraph ? "Hide Price Meter" : "Show Price Analysis"}
-                        </button>
+                            <span className="material-symbols-outlined text-sm">ssid_chart</span>
+                            Show Price Analysis
+                        </Link>
                     </div>
                 </div>
 
@@ -182,6 +159,7 @@ export function SearchResultCard({
                             <span className="material-symbols-outlined text-sm">shopping_basket</span>
                             Add to Basket
                         </button>
+
                         <button
                             onClick={async () => {
                                 setAlertLoading(true);
@@ -213,96 +191,6 @@ export function SearchResultCard({
                     </div>
                 </div>
             </div>
-
-            {/* Price Health Meter Section (New UI) */}
-            {showGraph && (
-                <div className="border-t border-gray-200 dark:border-gray-700 mt-4 pt-4 animate-in zoom-in-95 duration-300 origin-top">
-                    {(() => {
-                        const prices = priceHistory?.map(p => p.price) || [0];
-                        const cleanPrices = prices.filter(p => !isNaN(p) && p > 0);
-                        const min = cleanPrices.length ? Math.min(...cleanPrices) : 0;
-                        const max = cleanPrices.length ? Math.max(...cleanPrices) : 100;
-                        const current = Number(price.replace(/[^0-9.]/g, '')) || 0;
-
-                        const range = max - min || 1;
-                        const rawPercent = ((current - min) / range) * 100;
-                        const percent = Math.min(100, Math.max(0, rawPercent));
-
-                        let verdict = "Fair Price";
-                        let verdictColor = "text-amber-500";
-                        if (percent < 25) { verdict = "Great Deal"; verdictColor = "text-emerald-500"; }
-                        else if (percent > 75) { verdict = "High Price"; verdictColor = "text-rose-500"; }
-
-                        return (
-                            <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-5 border border-gray-100 dark:border-gray-800">
-                                <div className="flex justify-between items-end mb-6">
-                                    <div>
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Price Health</div>
-                                        <div className={`text-xl font-black ${verdictColor} tracking-tight`}>
-                                            {verdict}
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-[10px] text-gray-400 mb-0.5">6-Month Range</div>
-                                        <div className="text-xs font-mono font-medium text-gray-700 dark:text-gray-300">
-                                            ₹{min.toLocaleString()} — ₹{max.toLocaleString()}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Meter Range */}
-                                <div className="relative mb-8">
-                                    <div className="h-3 w-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400 rounded-full shadow-inner opacity-80"></div>
-
-                                    {/* Thumb */}
-                                    <div
-                                        className="absolute top-1/2 -translate-y-1/2 w-0.5 h-6 bg-gray-900 dark:bg-white shadow-[0_0_10px_rgba(0,0,0,0.2)] transition-all duration-700 ease-out z-10"
-                                        style={{ left: `${percent}%` }}
-                                    >
-                                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold py-1 px-2 rounded-md whitespace-nowrap shadow-xl">
-                                            Now: ₹{current.toLocaleString()}
-                                        </div>
-                                        {/* Little diamond pointer */}
-                                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900 dark:bg-white"></div>
-                                    </div>
-                                </div>
-
-                                {/* History Pulse */}
-                                <div className="flex justify-between items-center relative px-1">
-                                    <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gray-200 dark:bg-gray-700 -z-10"></div>
-
-                                    {normalizedGraphData.map((d, i) => {
-                                        let dotColor = "bg-gray-300 dark:bg-gray-600";
-                                        if (d.height < 30) dotColor = "bg-emerald-400";
-                                        else if (d.height > 70) dotColor = "bg-rose-400";
-                                        else dotColor = "bg-amber-400";
-
-                                        const size = i === normalizedGraphData.length - 1 ? "w-4 h-4 ring-2 ring-primary ring-offset-2" : "w-2.5 h-2.5";
-                                        const isLast = i === normalizedGraphData.length - 1;
-
-                                        return (
-                                            <div key={i} className="flex flex-col items-center gap-2 group cursor-pointer relative">
-                                                <div className={`rounded-full ${dotColor} ${size} shadow-sm transition-transform hover:scale-150`}>
-                                                </div>
-                                                {/* Tooltip on Hover */}
-                                                <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap transition-opacity z-20">
-                                                    ₹{d.price.toLocaleString()}
-                                                </div>
-
-                                                {(i === 0 || isLast) && (
-                                                    <span className="text-[9px] font-bold text-gray-400 absolute top-6 whitespace-nowrap">
-                                                        {i === 0 ? "6mo ago" : "Today"}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </div>
-            )}
-        </article >
+        </article>
     );
 }

@@ -1,13 +1,16 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 
-export default async function middleware(req: any) {
-  const session = await auth();
+const { auth } = NextAuth(authConfig);
+
+export default auth(async (req) => {
+  const session = req.auth;
   const path = req.nextUrl.pathname;
 
   // Protect specific routes
   const protectedRoutes = ["/budget", "/alerts", "/analysis", "/seller"];
-  
+
   if (protectedRoutes.some(route => path.startsWith(route)) && !session) {
     return NextResponse.redirect(new URL("/auth/signin", req.url));
   }
@@ -18,7 +21,7 @@ export default async function middleware(req: any) {
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ["/budget/:path*", "/alerts/:path*", "/analysis/:path*", "/seller/:path*", "/auth/signin"],

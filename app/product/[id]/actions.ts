@@ -2,6 +2,7 @@
 
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { extractSpecsWithAI, getPriceRecommendation, BuyRecommendation } from '@/lib/ai-utils';
 
 interface SpecCategory {
     name: string;
@@ -44,16 +45,13 @@ function identifyCategory(title: string): SpecCategory | null {
             return cat;
         }
     }
-    return null; // General
+    return null;
 }
 
-// Helper to generate plausible specs if extraction fails (Heuristic Engine)
 function generateFallbackSpecs(title: string, category: string): string[] {
     const specs: string[] = [];
     const t = title.toLowerCase();
 
-    // Generic fallbacks based on price tier or title keywords would ideally consume price too
-    // But simplified here based on keywords
     if (category === "Smartphone") {
         if (t.includes("pro") || t.includes("ultra") || t.includes("max")) {
             specs.push("RAM: 12GB / 16GB");
@@ -92,6 +90,7 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
     specs: string[];
     source?: string;
     message?: string;
+    aiEnhanced?: boolean;
 }> {
     if (!productTitle) return { category: "Unknown", specs: [], message: "No product title provided" };
 
@@ -101,18 +100,18 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
     const targetCategoryName = category ? category.name : "General";
 
     try {
-        // 1. Search for a spec-rich page
-        // We prioritize specific spec sites
+        // 1. Search for a spec-rich page (91mobiles, gsmarena, etc.)
         const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(productTitle + " full specifications 91mobiles gsmarena gadgets360")}`;
 
         const { data: searchData } = await axios.get(searchUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
+            timeout: 8000
         });
 
         const $search = cheerio.load(searchData);
         let targetLink: string | null = null;
 
-        // Smart Link Selection
+        // Smart Link Selection - prioritize spec sites
         $search('.b_algo h2 a').each((i, el) => {
             if (targetLink) return;
             const href = $search(el).attr('href');
@@ -123,13 +122,28 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
             }
         });
 
-        // Fallback Link
         if (!targetLink) {
             targetLink = $search('.b_algo h2 a').first().attr('href') || null;
         }
 
         if (!targetLink) {
-            console.log("[SpecFetcher] No link found, using heuristics.");
+            console.log("[SpecFetcher] No link found, using AI extraction...");
+
+            // 🤖 AI ENHANCEMENT: Use LLM to extract specs from title
+            const aiSpecs = await extractSpecsWithAI(productTitle);
+            const aiSpecsList = Object.entries(aiSpecs)
+                .filter(([_, v]) => v)
+                .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)}: ${v}`);
+
+            if (aiSpecsList.length > 0) {
+                return {
+                    category: targetCategoryName,
+                    specs: aiSpecsList,
+                    message: "Specs extracted using AI",
+                    aiEnhanced: true
+                };
+            }
+
             return {
                 category: targetCategoryName,
                 specs: generateFallbackSpecs(productTitle, targetCategoryName),
@@ -141,22 +155,20 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
 
         // 2. Fetch the Detail Page
         const { data: pageData } = await axios.get(targetLink, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
             timeout: 8000
         });
 
         const $ = cheerio.load(pageData);
         const extractedSpecs: string[] = [];
 
-        // STRATEGY A: Generic Table Extraction (Most Robust)
-        // Look for <table>, <tr>, <td> structures
+        // STRATEGY A: Generic Table Extraction
         $('table tr').each((i, tr) => {
             const tds = $(tr).find('td');
             if (tds.length >= 2) {
                 const label = $(tds[0]).text().trim();
                 const value = $(tds[1]).text().trim();
                 if (label.length > 2 && label.length < 30 && value.length > 1 && value.length < 100) {
-                    // Filter trivial rows
                     if (!label.toLowerCase().includes('read more') && !value.toLowerCase().includes('read more')) {
                         extractedSpecs.push(`${label}: ${value}`);
                     }
@@ -164,7 +176,7 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
             }
         });
 
-        // STRATEGY B: List Extraction (<ul><li>Label: Value</li></ul>)
+        // STRATEGY B: List Extraction
         if (extractedSpecs.length < 3) {
             $('li').each((i, li) => {
                 const text = $(li).text().trim();
@@ -181,28 +193,12 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
             });
         }
 
-        // STRATEGY C: Regex Fallback (The old way)
-        if (extractedSpecs.length < 3) {
-            const pageText = $('body').text().replace(/\s+/g, ' ');
-            // ... reusing bits of regex logic if needed, but Tables usually work best for "Full Specs"
-            const importantFields = category ? category.importantFields : ["Processor", "RAM", "Storage", "Battery", "Camera"];
-            importantFields.forEach(field => {
-                const regex = new RegExp(`${field}[:\\s]+([a-zA-Z0-9\\s\\.\\+\\-]{2,40})`, 'i');
-                const match = pageText.match(regex);
-                if (match && match[1]) {
-                    extractedSpecs.push(`${field}: ${match[1].trim()}`);
-                }
-            });
-        }
-
-        // Cleanup and Filtering
+        // Filter and prioritize specs
         let validSpecs = extractedSpecs.filter(s => {
             const lower = s.toLowerCase();
             return !lower.includes('price') && !lower.includes('user review') && !lower.includes('disclaimer');
         });
 
-        // Filter to "Relevant" if we have too many, or just return top 20
-        // We prioritize the "Important fields"
         if (category) {
             const prioritized: string[] = [];
             const others: string[] = [];
@@ -220,7 +216,33 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
             validSpecs = validSpecs.slice(0, 10);
         }
 
-        // If scraping failed completely (e.g. anti-bot block), fallback to heuristics
+        // 🤖 AI ENHANCEMENT: If scraping found few specs, enhance with AI
+        if (validSpecs.length < 4) {
+            console.log("[SpecFetcher] Few specs found, enhancing with AI...");
+            const pageText = $('body').text().substring(0, 5000);
+            const aiSpecs = await extractSpecsWithAI(productTitle, pageText);
+
+            const aiSpecsList = Object.entries(aiSpecs)
+                .filter(([_, v]) => v)
+                .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)}: ${v}`);
+
+            // Merge AI specs with scraped specs (avoid duplicates)
+            const existingKeys = validSpecs.map(s => s.split(':')[0].toLowerCase().trim());
+            aiSpecsList.forEach(s => {
+                const key = s.split(':')[0].toLowerCase().trim();
+                if (!existingKeys.includes(key)) {
+                    validSpecs.push(s);
+                }
+            });
+
+            return {
+                category: targetCategoryName,
+                specs: validSpecs.slice(0, 15),
+                source: targetLink,
+                aiEnhanced: true
+            };
+        }
+
         if (validSpecs.length === 0) {
             return {
                 category: targetCategoryName,
@@ -237,7 +259,26 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
 
     } catch (error) {
         console.error(`[SpecFetcher] Error:`, error);
-        // Final Fallback
+
+        // 🤖 FINAL FALLBACK: Use AI extraction
+        try {
+            const aiSpecs = await extractSpecsWithAI(productTitle);
+            const aiSpecsList = Object.entries(aiSpecs)
+                .filter(([_, v]) => v)
+                .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)}: ${v}`);
+
+            if (aiSpecsList.length > 0) {
+                return {
+                    category: targetCategoryName,
+                    specs: aiSpecsList,
+                    message: "Specs extracted using AI (fallback)",
+                    aiEnhanced: true
+                };
+            }
+        } catch (aiError) {
+            console.error("[SpecFetcher] AI fallback also failed:", aiError);
+        }
+
         return {
             category: targetCategoryName,
             specs: generateFallbackSpecs(productTitle, targetCategoryName),
@@ -245,3 +286,13 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
         };
     }
 }
+
+// 🤖 NEW: AI-Powered Price Analysis
+export async function fetchPriceAnalysis(
+    productTitle: string,
+    currentPrice: number,
+    priceHistory?: { date: string; price: number }[]
+): Promise<BuyRecommendation> {
+    return getPriceRecommendation(productTitle, currentPrice, priceHistory);
+}
+

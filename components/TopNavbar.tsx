@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { getUserItem, STORAGE_KEYS } from "@/lib/user-storage";
 
 export function TopNavbar() {
     const pathname = usePathname();
@@ -13,6 +14,9 @@ export function TopNavbar() {
 
     // Detect stale "Guest User" session from old logic and force cleanup
     const isStaleGuest = session?.user?.name === "Guest User";
+
+    // Get user ID for user-specific storage
+    const userId = session?.user?.email || session?.user?.id;
 
     /* Real-time Profile Updates */
     const [userAvatar, setUserAvatar] = useState(session?.user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest");
@@ -26,16 +30,16 @@ export function TopNavbar() {
 
     useEffect(() => {
         const updateProfile = () => {
-            // Update Avatar
-            const savedAvatar = localStorage.getItem('trustbuy_user_avatar');
+            // Update Avatar (user-specific)
+            const savedAvatar = getUserItem(STORAGE_KEYS.AVATAR, userId);
             if (savedAvatar) {
                 setUserAvatar(savedAvatar);
             } else if (session?.user?.image) {
                 setUserAvatar(session.user.image);
             }
 
-            // Update Name
-            const savedName = localStorage.getItem('trustbuy_user_name');
+            // Update Name (user-specific)
+            const savedName = getUserItem(STORAGE_KEYS.NAME, userId);
             if (savedName) {
                 setDisplayName(savedName);
             } else if (session?.user?.name) {
@@ -54,7 +58,7 @@ export function TopNavbar() {
             window.removeEventListener('trustbuy_avatar_update', updateProfile);
             window.removeEventListener('trustbuy_profile_update', updateProfile);
         };
-    }, [session]);
+    }, [session, userId]);
 
     // Don't show navbar on landing page or auth pages
     if (pathname === "/" || pathname?.startsWith("/auth")) {

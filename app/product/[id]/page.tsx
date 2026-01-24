@@ -130,6 +130,15 @@ function ProductSpecContent() {
                             <span className="material-symbols-outlined">share</span>
                         </button>
                     </div>
+
+                    {/* Price Analysis Button */}
+                    <Link
+                        href={`/analysis?name=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&url=${encodeURIComponent(link || '')}&source=${encodeURIComponent(storeName)}`}
+                        className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
+                    >
+                        <span className="material-symbols-outlined">analytics</span>
+                        AI Price Analysis & Prediction
+                    </Link>
                 </div>
 
                 {/* Right Column: Key Infos & Specs */}

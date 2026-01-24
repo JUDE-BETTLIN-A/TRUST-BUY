@@ -4,11 +4,13 @@ import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { SearchResultCard } from '@/components/SearchResultCard';
 import { Product } from '@/lib/mock-scraper';
 import { addToHistory } from '@/lib/history';
 import { searchProductsAction } from './actions';
 import { FilterSidebar, FilterState } from './components/FilterSidebar';
+import { getUserItem, setUserItem, STORAGE_KEYS } from '@/lib/user-storage';
 
 const DEFAULT_FILTERS: FilterState = {
   minPrice: 0,
@@ -30,13 +32,14 @@ function SearchPageContent() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const userId = session?.user?.email || session?.user?.id;
+
   const query = searchParams.get('q');
   const category = searchParams.get('category');
 
   const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
 
   // Filter & Sort State
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -47,7 +50,6 @@ function SearchPageContent() {
 
     if (searchQuery) {
       setLoading(true);
-      setPage(1);
 
       // Try the server action (which handles real scraping + mock fallback)
       searchProductsAction(searchQuery, 1).then(async (data) => {
@@ -65,7 +67,7 @@ function SearchPageContent() {
         setResults(finalData);
         setLoading(false);
 
-        // Save to history
+        // Save to history (user-specific)
         if (finalData.length > 0 && searchQuery) {
           const topProduct = finalData[0];
           const displayQuery = query || category || "Search";
@@ -75,7 +77,7 @@ function SearchPageContent() {
             topResultTitle: topProduct.title,
             price: topProduct.price,
             link: topProduct.link
-          });
+          }, userId);
         }
       }).catch(async (err) => {
         console.error("Search Action Error:", err);
@@ -89,55 +91,6 @@ function SearchPageContent() {
       setResults([]);
     }
   }, [query, category]);
-
-  const handleLoadMore = async () => {
-    const searchQuery = category ? `${category}` : query;
-    if (!searchQuery) return;
-
-    setLoadingMore(true);
-    const nextPage = page + 1;
-
-    try {
-      let currentPage = page + 1;
-      let foundUnique = false;
-      let attempts = 0;
-
-      while (!foundUnique && attempts < 3) {
-        console.log(`[Load More] Attempting Page ${currentPage}...`);
-        const newProducts = await searchProductsAction(searchQuery, currentPage);
-
-        if (!newProducts || newProducts.length === 0) {
-          console.log(`[Load More] Page ${currentPage} returned no results.`);
-          break;
-        }
-
-        // Check against CURRENT results (snapshot)
-        const existingIds = new Set(results.map(r => r.id));
-        const uniqueCount = newProducts.filter(p => !existingIds.has(p.id)).length;
-
-        console.log(`[Load More] Page ${currentPage}: Found ${uniqueCount} unique items out of ${newProducts.length}`);
-
-        if (uniqueCount > 0) {
-          setResults(prev => {
-            const currentIds = new Set(prev.map(p => p.id));
-            const reallyUnique = newProducts.filter(p => !currentIds.has(p.id));
-            return [...prev, ...reallyUnique];
-          });
-          setPage(currentPage);
-          foundUnique = true;
-        } else {
-          console.log(`[Load More] Page ${currentPage} was entirely duplicates. Skipping...`);
-          currentPage++;
-          attempts++;
-        }
-      }
-
-    } catch (err) {
-      console.error("Failed to load more products", err);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
 
   // Derivative state: Filtered & Sorted Results
   const sortedAndFilteredResults = useMemo(() => {
@@ -288,9 +241,9 @@ function SearchPageContent() {
   };
 
   const handleCompareClick = () => {
-    // Save selected products to localStorage for the compare page
+    // Save selected products to localStorage for the compare page (user-specific)
     const productsToCompare = results.filter(p => selectedProducts.includes(p.id));
-    localStorage.setItem('trustbuy_compare', JSON.stringify(productsToCompare));
+    setUserItem(STORAGE_KEYS.COMPARE, JSON.stringify(productsToCompare), userId);
     router.push('/compare');
   };
 
@@ -299,7 +252,8 @@ function SearchPageContent() {
   const [duplicateProduct, setDuplicateProduct] = useState<Product | null>(null);
 
   const handleAddToBasketReq = (product: Product) => {
-    const basket = JSON.parse(localStorage.getItem('trustbuy_basket') || '[]');
+    const basketData = getUserItem(STORAGE_KEYS.BASKET, userId);
+    const basket = basketData ? JSON.parse(basketData) : [];
     if (basket.find((p: any) => p.title === product.title)) {
       setDuplicateProduct(product);
     } else {
@@ -310,11 +264,12 @@ function SearchPageContent() {
   const confirmAddToBasket = () => {
     if (!pendingAddToBasket) return;
 
-    const basket = JSON.parse(localStorage.getItem('trustbuy_basket') || '[]');
+    const basketData = getUserItem(STORAGE_KEYS.BASKET, userId);
+    const basket = basketData ? JSON.parse(basketData) : [];
     // Double check just in case
     if (!basket.find((p: any) => p.title === pendingAddToBasket.title)) {
       basket.push(pendingAddToBasket);
-      localStorage.setItem('trustbuy_basket', JSON.stringify(basket));
+      setUserItem(STORAGE_KEYS.BASKET, JSON.stringify(basket), userId);
     }
     setPendingAddToBasket(null);
   };
@@ -586,28 +541,7 @@ function SearchPageContent() {
           )}
         </div>
 
-        {/* Pagination / Load More */}
-        {!loading && sortedAndFilteredResults.length > 0 && (
-          <div className="flex justify-center mt-8">
-            <button
-              onClick={handleLoadMore}
-              disabled={loadingMore}
-              className="bg-[#2dd4bf] hover:bg-[#14b8a6] text-white text-lg font-bold py-3 px-10 rounded-xl shadow-[0_10px_20px_-10px_rgba(45,212,191,0.5)] hover:shadow-[0_20px_20px_-10px_rgba(45,212,191,0.6)] transform transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
-            >
-              {loadingMore ? (
-                <>
-                  <span className="size-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  Loading...
-                </>
-              ) : (
-                <>
-                  Load More Results
-                  <span className="material-symbols-outlined font-bold">expand_more</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
+        {/* End of results */}
         <div className="h-20"></div> {/* Spacer */}
       </div>
 

@@ -23,6 +23,7 @@ function parsePrice(priceStr: string): number {
 
 // Tokenize title for fuzzy matching
 function tokenize(text: string): Set<string> {
+    if (!text) return new Set();
     return new Set(text.toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')
         .split(/\s+/)
@@ -51,6 +52,9 @@ function calculateSimilarity(title1: string, title2: string): number {
 }
 
 export function aggregateProducts(products: Product[]): Product[] {
+    // Filter out invalid products
+    products = products.filter(p => p && p.title);
+
     const aggregated: Product[] = [];
     const groupedMap = new Map<string, Product[]>();
 

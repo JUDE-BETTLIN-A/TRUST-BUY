@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { Product } from './mock-scraper';
+import { scrapeProductsAgentic } from './agent-scraper';
 
 // Re-export the interface for convenience, or use the one from mock-scraper
 export type ScrapedProduct = Product;
@@ -473,7 +474,19 @@ async function scrapeProductsEbay(query: string, page: number = 1): Promise<Prod
 export async function scrapeProductsReal(query: string, page: number = 1): Promise<Product[]> {
     let results: Product[] = [];
 
-    // 1. Try Bing Shopping first (Verified working)
+    // 0. PRIORITY: Agentic Scraper (LLM-based validation)
+    try {
+        console.log(`[Scraper] Attempting Agentic Scrape for: ${query}`);
+        const agentResults = await scrapeProductsAgentic(query, page);
+        if (agentResults.length > 0) {
+            console.log(`[Scraper] Agentic scrape successful. Found ${agentResults.length} items.`);
+            return agentResults;
+        }
+    } catch (e) {
+        console.warn("[Scraper] Agentic scrape failed, falling back to legacy:", e);
+    }
+
+    // 1. Fallback: Bing Shopping (Legacy)
     const bingProducts = await scrapeProductsBing(query, page);
     if (bingProducts.length > 0) {
         results = bingProducts;
@@ -483,7 +496,7 @@ export async function scrapeProductsReal(query: string, page: number = 1): Promi
         if (ddgProducts.length > 0) {
             results = ddgProducts;
         } else {
-            // 3. Last resort: Google Shopping (often blocked)
+            // 3. Last resort: Google Shopping
             const googleProducts = await scrapeProductsGoogleShopping(query, page);
             if (googleProducts.length > 0) {
                 results = googleProducts;

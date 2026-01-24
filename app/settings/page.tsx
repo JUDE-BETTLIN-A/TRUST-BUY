@@ -5,49 +5,49 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Shield, Moon, Wifi, Info } from 'lucide-react'; // Added Wallet icon
+import { Bell, Shield, Moon, Info } from 'lucide-react';
 import { signOut } from "next-auth/react";
-
 
 /* New Imports */
 import { User } from 'lucide-react';
 import { AvatarSelector } from '@/components/profile/AvatarSelector';
 import { useSession } from "next-auth/react";
+import { getUserItem, setUserItem, STORAGE_KEYS } from '@/lib/user-storage';
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const userId = session?.user?.email || session?.user?.id;
 
   const [userAvatar, setUserAvatar] = useState("");
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
-
-    // Load Avatar
-    const savedAvatar = localStorage.getItem('trustbuy_user_avatar');
+    // Load Avatar (user-specific)
+    const savedAvatar = getUserItem(STORAGE_KEYS.AVATAR, userId);
     if (savedAvatar) {
       setUserAvatar(savedAvatar);
     } else if (session?.user?.image) {
       setUserAvatar(session.user.image);
     }
 
-    // Load Name
-    const savedName = localStorage.getItem('trustbuy_user_name');
+    // Load Name (user-specific)
+    const savedName = getUserItem(STORAGE_KEYS.NAME, userId);
     if (savedName) {
       setUserName(savedName);
     } else if (session?.user?.name) {
       setUserName(session.user.name);
     }
-  }, [session]);
+  }, [session, userId]);
 
   const handleSaveProfile = (newUrl: string, newName?: string) => {
     if (newUrl) {
       setUserAvatar(newUrl);
-      localStorage.setItem('trustbuy_user_avatar', newUrl);
+      setUserItem(STORAGE_KEYS.AVATAR, newUrl, userId);
     }
 
     if (newName) {
       setUserName(newName);
-      localStorage.setItem('trustbuy_user_name', newName);
+      setUserItem(STORAGE_KEYS.NAME, newName, userId);
     }
 
     // Dispatch custom event for immediate UI update bundle
