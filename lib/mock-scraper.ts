@@ -161,77 +161,77 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
     };
 
     // Generate random offset once for trending products to ensure different products on each refresh
-        const randomOffset = isTrending ? Math.floor(Math.random() * TRENDING_ITEMS.length) : 0;
+    const randomOffset = isTrending ? Math.floor(Math.random() * TRENDING_ITEMS.length) : 0;
 
-        for (let i = 0; i < count; i++) {
-            const store = STORES[Math.floor(Math.random() * STORES.length)];
-            
-            // For trending products, use more realistic price ranges
-            let priceValUSD: number;
-            if (isTrending) {
-                // Trending products should have realistic prices (₹5,000 - ₹200,000)
-                priceValUSD = getRandomInt(60, 2400); // 60-2400 USD = ₹5,000 - ₹200,000
-            } else {
-                priceValUSD = getRandomInt(50, 1500); // Base value for other searches
+    for (let i = 0; i < count; i++) {
+        const store = STORES[Math.floor(Math.random() * STORES.length)];
+
+        // For trending products, use more realistic price ranges
+        let priceValUSD: number;
+        if (isTrending) {
+            // Trending products should have realistic prices (₹5,000 - ₹200,000)
+            priceValUSD = getRandomInt(60, 2400); // 60-2400 USD = ₹5,000 - ₹200,000
+        } else {
+            priceValUSD = getRandomInt(50, 1500); // Base value for other searches
+        }
+
+        const priceValINR = priceValUSD * 84; // Approx conversion
+        // Format as Indian Rupee manually to avoid encoding issues
+        const formattedPrice = `₹${Math.round(priceValINR).toLocaleString('en-IN')}`;
+
+        // Generate Original Price for Discounts
+        const discountPct = Math.random() < 0.7 ? (Math.random() * 0.4) + 0.05 : 0; // 70% chance of discount, 5-45%
+        let formattedOriginalPrice: string | undefined = undefined;
+        if (discountPct > 0) {
+            const originalVal = priceValINR * (1 + discountPct);
+            formattedOriginalPrice = `₹${Math.round(originalVal).toLocaleString('en-IN')}`;
+        }
+
+        const isBestPrice = i === 0 || Math.random() > 0.8;
+
+        let title = `${formattedQuery} ${i % 2 === 0 ? 'Pro' : 'Standard'} Edition - ${store} Exclusive Bundle`;
+        let image = "";
+
+        // Check if query matches a known keyword for reliable image
+        const lowerQuery = query.toLowerCase();
+        let keywordMatch = Object.keys(KEYWORD_IMAGES).find(key => lowerQuery.includes(key));
+
+        // Check if this is a category-based search (both direct and expanded queries)
+        const categoryKeywords: Record<string, string[]> = {
+            'electronics': ['electronics', 'iphone', 'samsung', 'galaxy', 'laptop', 'headphones', 'smartwatch', 'macbook', 'ipad', 'phone'],
+            'home': ['home', 'sofa', 'bed', 'mattress', 'tv', 'air conditioner', 'refrigerator', 'furniture', 'appliance'],
+            'fashion': ['fashion', 'nike', 'adidas', 't-shirt', 'jeans', 'jacket', 'shoes', 'clothing', 'shirt', 'levis'],
+            'sports': ['sports', 'cricket', 'football', 'gym', 'yoga', 'fitness', 'badminton', 'bat', 'equipment'],
+            'auto': ['auto', 'car', 'dash cam', 'tyre', 'seat cover', 'helmet', 'vehicle', 'bike']
+        };
+
+        let categoryMatch: string | undefined = undefined;
+        for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+            if (keywords.some(kw => lowerQuery.includes(kw))) {
+                categoryMatch = cat;
+                break;
             }
-            
-            const priceValINR = priceValUSD * 84; // Approx conversion
-            // Format as Indian Rupee manually to avoid encoding issues
-            const formattedPrice = `₹${Math.round(priceValINR).toLocaleString('en-IN')}`;
+        }
 
-            // Generate Original Price for Discounts
-            const discountPct = Math.random() < 0.7 ? (Math.random() * 0.4) + 0.05 : 0; // 70% chance of discount, 5-45%
-            let formattedOriginalPrice: string | undefined = undefined;
-            if (discountPct > 0) {
-                const originalVal = priceValINR * (1 + discountPct);
-                formattedOriginalPrice = `₹${Math.round(originalVal).toLocaleString('en-IN')}`;
-            }
-
-            const isBestPrice = i === 0 || Math.random() > 0.8;
-
-            let title = `${formattedQuery} ${i % 2 === 0 ? 'Pro' : 'Standard'} Edition - ${store} Exclusive Bundle`;
-            let image = "";
-
-            // Check if query matches a known keyword for reliable image
-            const lowerQuery = query.toLowerCase();
-            let keywordMatch = Object.keys(KEYWORD_IMAGES).find(key => lowerQuery.includes(key));
-
-            // Check if this is a category-based search (both direct and expanded queries)
-            const categoryKeywords: Record<string, string[]> = {
-                'electronics': ['electronics', 'iphone', 'samsung', 'galaxy', 'laptop', 'headphones', 'smartwatch', 'macbook', 'ipad', 'phone'],
-                'home': ['home', 'sofa', 'bed', 'mattress', 'tv', 'air conditioner', 'refrigerator', 'furniture', 'appliance'],
-                'fashion': ['fashion', 'nike', 'adidas', 't-shirt', 'jeans', 'jacket', 'shoes', 'clothing', 'shirt', 'levis'],
-                'sports': ['sports', 'cricket', 'football', 'gym', 'yoga', 'fitness', 'badminton', 'bat', 'equipment'],
-                'auto': ['auto', 'car', 'dash cam', 'tyre', 'seat cover', 'helmet', 'vehicle', 'bike']
-            };
-
-            let categoryMatch: string | undefined = undefined;
-            for (const [cat, keywords] of Object.entries(categoryKeywords)) {
-                if (keywords.some(kw => lowerQuery.includes(kw))) {
-                    categoryMatch = cat;
-                    break;
-                }
-            }
-
-            if (categoryMatch) {
-                // Use category-specific product names
-                const categoryProducts = CATEGORY_PRODUCTS[categoryMatch];
-                title = categoryProducts[i % categoryProducts.length];
-                // Find a matching image keyword from the title
-                const titleLower = title.toLowerCase();
-                const imageKey = Object.keys(KEYWORD_IMAGES).find(k => titleLower.includes(k));
-                image = imageKey ? KEYWORD_IMAGES[imageKey] : `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
-            } else if (isTrending) {
-                // Use the pre-generated random offset to get different products on each refresh
-                const trendingIndex = (i + randomOffset) % TRENDING_ITEMS.length;
-                title = TRENDING_ITEMS[trendingIndex];
-                image = TRENDING_IMAGES[title] || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=60";
-            } else if (keywordMatch) {
-                image = KEYWORD_IMAGES[keywordMatch];
-            } else {
-                // Use Pollinations.ai for relevant product images based on the query.
-                image = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
-            }
+        if (categoryMatch) {
+            // Use category-specific product names
+            const categoryProducts = CATEGORY_PRODUCTS[categoryMatch];
+            title = categoryProducts[i % categoryProducts.length];
+            // Find a matching image keyword from the title
+            const titleLower = title.toLowerCase();
+            const imageKey = Object.keys(KEYWORD_IMAGES).find(k => titleLower.includes(k));
+            image = imageKey ? KEYWORD_IMAGES[imageKey] : `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
+        } else if (isTrending) {
+            // Use the pre-generated random offset to get different products on each refresh
+            const trendingIndex = (i + randomOffset) % TRENDING_ITEMS.length;
+            title = TRENDING_ITEMS[trendingIndex];
+            image = TRENDING_IMAGES[title] || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=60";
+        } else if (keywordMatch) {
+            image = KEYWORD_IMAGES[keywordMatch];
+        } else {
+            // Use Pollinations.ai for relevant product images based on the query.
+            image = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}%20product%20photo%20hq%20white%20background?width=400&height=400&nologo=true&seed=${i}`;
+        }
 
         const rating = Number((Math.random() * 2.4 + 7.5).toFixed(1));
         const trustBadge = rating > 9.2 ? "Excellent" : rating > 8.5 ? "Very Good" : "Good";
@@ -254,6 +254,28 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
         // Shipping
         const shipping = Math.random() > 0.4 ? "Free Shipping" : "₹40 Shipping";
 
+        // Generate realistic store links based on the assigned store
+        let link = "";
+        const encTitle = encodeURIComponent(title);
+
+        if (store.toLowerCase().includes('amazon')) {
+            link = `https://www.amazon.in/s?k=${encTitle}`;
+        } else if (store.toLowerCase().includes('flipkart')) {
+            link = `https://www.flipkart.com/search?q=${encTitle}`;
+        } else if (store.toLowerCase().includes('croma')) {
+            link = `https://www.croma.com/search/?text=${encTitle}`;
+        } else if (store.toLowerCase().includes('reliance')) {
+            link = `https://www.reliancedigital.in/search?q=${encTitle}`;
+        } else if (store.toLowerCase().includes('tata')) {
+            link = `https://www.tatacliq.com/search/?searchCategory=all&text=${encTitle}`;
+        } else if (store.toLowerCase().includes('myntra')) {
+            link = `https://www.myntra.com/${encTitle.replace(/%20/g, '-')}`;
+        } else if (store.toLowerCase().includes('ajio')) {
+            link = `https://www.ajio.com/search/?text=${encTitle}`;
+        } else {
+            link = `https://www.google.com/search?q=${encTitle}+buy+online`;
+        }
+
         results.push({
             id: mockId,
             title: title,
@@ -266,7 +288,7 @@ export async function searchProducts(query: string, page: number = 1): Promise<P
             bestPrice: isBestPrice,
             rating: rating,
             trustScoreBadge: trustBadge,
-            link: `https://www.google.com/search?q=${encodeURIComponent(title)}`,
+            link: link,
             originalPrice: formattedOriginalPrice,
             shipping: shipping,
             priceHistory: Array.from({ length: 6 }).map((_, idx) => {

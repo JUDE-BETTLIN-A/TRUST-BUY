@@ -146,7 +146,7 @@ export function SearchResultCard({
 
                     <div className="flex flex-col gap-2 mt-4 md:mt-0">
                         <Link
-                            href={`/product/${id}?title=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&store=${encodeURIComponent(storeName)}&link=${encodeURIComponent(link || '')}&rating=${rating}`}
+                            href={`/product/${id}?title=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&store=${encodeURIComponent(storeName)}&link=${encodeURIComponent(link || '')}&rating=${rating}&originalPrice=${encodeURIComponent(originalPrice || '')}`}
                             className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-4 rounded shadow-sm hover:shadow transition-all text-sm flex items-center justify-center gap-2"
                         >
                             View Details

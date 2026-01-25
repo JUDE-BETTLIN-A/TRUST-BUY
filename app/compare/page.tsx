@@ -23,22 +23,8 @@ interface AIComparisonResult {
 }
 
 // Simulated specs for demo (in real app, these would come from scraping)
-const generateSpecs = (product: Product) => {
-  const brands = ['Samsung', 'Apple', 'Google', 'Sony', 'LG', 'Dell', 'HP'];
-  const displays = ['6.7" OLED 120Hz', '6.1" Super Retina XDR', '7.6" Dynamic AMOLED', '6.5" LCD 90Hz', '15.6" IPS FHD'];
-  const processors = ['Snapdragon 8 Gen 3', 'A17 Pro', 'Google Tensor G3', 'MediaTek Dimensity 9000', 'Intel Core i7'];
-  const warranties = ['1 Year Mfg', '2 Years Extended', '1 Year AppleCare+ Opt', '6 Months Seller'];
-  const deliveries = ['Tomorrow', 'Oct 25-28', 'Free 2-Day', 'Standard 5-7 Days'];
+// Simulated specs removed to avoid mock data
 
-  const hash = product.title.length + product.price.length;
-
-  return {
-    display: displays[hash % displays.length],
-    processor: processors[(hash + 1) % processors.length],
-    warranty: warranties[(hash + 2) % warranties.length],
-    delivery: deliveries[(hash + 3) % deliveries.length],
-  };
-};
 
 export default function ComparePage() {
   const router = useRouter();
@@ -130,6 +116,7 @@ export default function ComparePage() {
       </main>
     );
   }
+
 
   if (products.length === 0) {
     return (
@@ -390,11 +377,9 @@ export default function ComparePage() {
             </div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
               {products.map((product) => {
-                const specs = generateSpecs(product);
                 return (
                   <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
-                    <p className="font-medium text-gray-900 dark:text-white">{specs.display.split(' ')[0]}</p>
-                    <p className="text-xs text-gray-500">{specs.display.split(' ').slice(1).join(' ')}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{product.specs?.display || 'N/A'}</p>
                   </div>
                 );
               })}
@@ -409,10 +394,9 @@ export default function ComparePage() {
             </div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
               {products.map((product) => {
-                const specs = generateSpecs(product);
                 return (
                   <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
-                    <p className="font-medium text-gray-900 dark:text-white">{specs.processor}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{product.specs?.processor || 'N/A'}</p>
                   </div>
                 );
               })}
@@ -427,13 +411,10 @@ export default function ComparePage() {
             </div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
               {products.map((product) => {
-                const specs = generateSpecs(product);
-                const isExtended = specs.warranty.includes('Extended');
                 return (
                   <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
-                    <p className={`font-medium ${isExtended ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                      {specs.warranty}
-                      {isExtended && <span className="ml-1">✓</span>}
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Manufacturer Warranty
                     </p>
                   </div>
                 );
@@ -449,23 +430,16 @@ export default function ComparePage() {
             </div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${products.length}, 1fr)` }}>
               {products.map((product) => {
-                const specs = generateSpecs(product);
-                const isFast = specs.delivery === 'Tomorrow' || specs.delivery.includes('2-Day');
                 return (
                   <div key={product.id} className="px-6 py-4 border-l border-gray-100 dark:border-gray-800">
-                    {isFast ? (
-                      <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
-                        {specs.delivery}
-                      </span>
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">{specs.delivery}</p>
-                    )}
+                    <p className="text-gray-900 dark:text-white">Standard Delivery</p>
                   </div>
                 );
               })}
             </div>
           </div>
         </div>
+
 
         {/* Action Buttons Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">

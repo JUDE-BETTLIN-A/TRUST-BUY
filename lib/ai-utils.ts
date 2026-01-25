@@ -107,9 +107,10 @@ export async function extractSpecsWithAI(productTitle: string, rawContent?: stri
   ${rawContent ? `Additional Content: ${rawContent.substring(0, 3000)}` : ''}
   
   RULES:
-  1. Extract ONLY specifications that are explicitly mentioned or strongly implied
-  2. Use standard units (GB, mAh, inches, MP, Hz)
-  3. Return empty string for unknown specs, don't guess
+  1. Extract specifications from the text provided.
+  2. MISSING DATA: If specific details are not in the text but you identify the product model (e.g. 'iPhone 15', 'Galaxy S22'), YOU MUST FILL IN THE ACCURATE SPECS from your knowledge base.
+  3. Use standard units (GB, mAh, inches, MP, Hz).
+  4. Ensure the data is accurate for the specific model version mentioned.
   
   Return JSON:
   {
@@ -199,12 +200,13 @@ export async function getPriceRecommendation(
   2. Price trend (going up/down/stable)?
   3. Upcoming sale seasons in India (Diwali, Republic Day, etc.)
   4. Typical price patterns for this product category
+  5. PRICE CONTEXT: ALWAYS explain the key factor driving the current price (e.g., depreciation due to newer models, stable as it's a new launch, or seasonal demand).
   
   Return JSON:
   {
     "recommendation": "Buy Now" | "Wait" | "Fair Price",
     "confidence": "High" | "Medium" | "Low",
-    "reason": "Brief 1-2 sentence explanation",
+    "reason": "Brief 1-2 sentence explanation. YOU MUST EXPLAIN THE PRICE CAUSE (e.g. 'Depreciated likely due to newer version release', 'Stable market price', or 'Recent discount').",
     "priceVerdict": "Great Deal" | "Good Price" | "Average" | "Overpriced",
     "predictedTrend": "Up" | "Down" | "Stable",
     "tips": ["tip1", "tip2"]

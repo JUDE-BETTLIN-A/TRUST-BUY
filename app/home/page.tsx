@@ -8,7 +8,7 @@ import { useSession } from 'next-auth/react';
 
 import { getHistory, HistoryItem } from '@/lib/history';
 import { searchProductsAction } from '../search/actions';
-import { searchProducts as searchProductsMock } from '@/lib/mock-scraper';
+// import { searchProducts as searchProductsMock } from '@/lib/mock-scraper';
 import { getAlerts } from '../alerts/actions';
 import { Product } from '@/lib/mock-scraper';
 import { TrendingCard } from '@/components/TrendingCard';
@@ -72,7 +72,7 @@ export default function HomePage() {
       };
 
       // Movie filter keywords accessible to both try/catch
-      const movieKeywords = ['movie','movies','film','dvd','blu-ray','bluray','box set','boxset','collection','soundtrack'];
+      const movieKeywords = ['movie', 'movies', 'film', 'dvd', 'blu-ray', 'bluray', 'box set', 'boxset', 'collection', 'soundtrack'];
       const isMovie = (p: Product) => {
         const t = (p.title || '').toLowerCase();
         const c = (p.category || '').toLowerCase();
@@ -87,28 +87,14 @@ export default function HomePage() {
         const shuffled = shuffleArray(products);
         let trendingProducts = shuffled.filter(p => !isMovie(p));
 
-        // If we don't have enough non-movie results, fall back to mock data and merge (also shuffled)
-        if (trendingProducts.length < 4) {
-          const fallback = await searchProductsMock("trending best selling products", 1);
-          const fallbackFiltered = shuffleArray(fallback).filter(p => !isMovie(p));
-          trendingProducts = [...trendingProducts, ...fallbackFiltered].slice(0, 4);
-        } else {
-          trendingProducts = trendingProducts.slice(0, 4);
-        }
+        // If we don't have enough results, we just show what we have (no mock data)
+        trendingProducts = trendingProducts.slice(0, 4);
 
         console.log("Trending products loaded (after filtering movies & shuffling):", trendingProducts.length);
         setTrendingProducts(trendingProducts);
       } catch (e) {
         console.error("Failed to load trending items", e);
-        // Fallback to mock data if real search fails
-        try {
-          const mockProducts = await searchProductsMock("trending best selling products", 1);
-          const filteredMockProducts = shuffleArray(mockProducts).filter(p => !isMovie(p));
-          setTrendingProducts(filteredMockProducts.slice(0, 4));
-        } catch (fallbackError) {
-          console.error("Fallback also failed:", fallbackError);
-          setTrendingProducts([]);
-        }
+        setTrendingProducts([]);
       } finally {
         setLoadingTrending(false);
       }

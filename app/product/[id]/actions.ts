@@ -48,42 +48,8 @@ function identifyCategory(title: string): SpecCategory | null {
     return null;
 }
 
-function generateFallbackSpecs(title: string, category: string): string[] {
-    const specs: string[] = [];
-    const t = title.toLowerCase();
+// Function removed as hidden mock data fallback was requested to be removed
 
-    if (category === "Smartphone") {
-        if (t.includes("pro") || t.includes("ultra") || t.includes("max")) {
-            specs.push("RAM: 12GB / 16GB");
-            specs.push("Storage: 256GB / 512GB / 1TB");
-            specs.push("Processor: Flagship Octa-Core Chipset");
-            specs.push("Display: 6.7 inch AMOLED 120Hz");
-            specs.push("Camera: 50MP + 48MP + 12MP Triple Cam");
-            specs.push("Battery: 5000 mAh with Fast Charging");
-        } else {
-            specs.push("RAM: 6GB / 8GB");
-            specs.push("Storage: 128GB / 256GB");
-            specs.push("Processor: Octa-Core 5G Processor");
-            specs.push("Display: 6.5 inch FHD+ 90Hz");
-            specs.push("Camera: 50MP Dual Camera");
-            specs.push("Battery: 5000 mAh");
-        }
-        specs.push("OS: Android 14 / Latest OS");
-    } else if (category === "Laptop") {
-        specs.push("Processor: Intel Core i5 / i7 or AMD Ryzen 5 / 7");
-        specs.push("RAM: 8GB / 16GB DDR5");
-        specs.push("Storage: 512GB NVMe SSD");
-        specs.push("Display: 15.6 inch FHD IPS");
-        specs.push("OS: Windows 11 Home");
-    } else if (category === "Game Console") {
-        specs.push("Storage: 825GB / 1TB Custom SSD");
-        specs.push("Resolution: Up to 8K / 4K @ 120Hz");
-        specs.push("Processor: Custom Zen 2 Processor");
-        specs.push("GPU: Custom RDNA 2 GPU");
-    }
-
-    return specs;
-}
 
 export async function fetchRealSpecs(productTitle: string): Promise<{
     category: string;
@@ -146,8 +112,8 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
 
             return {
                 category: targetCategoryName,
-                specs: generateFallbackSpecs(productTitle, targetCategoryName),
-                message: "Specs estimated based on product class"
+                specs: [],
+                message: "Specs not available"
             };
         }
 
@@ -220,7 +186,8 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
         if (validSpecs.length < 4) {
             console.log("[SpecFetcher] Few specs found, enhancing with AI...");
             const pageText = $('body').text().substring(0, 5000);
-            const aiSpecs = await extractSpecsWithAI(productTitle, pageText);
+            // We pass the title + page text so AI can extract OR infer from title if page text is garbage
+            const aiSpecs = await extractSpecsWithAI(productTitle, `Product Title: ${productTitle}\n\nPAGE CONTENT ESTIMATE: ${pageText}`);
 
             const aiSpecsList = Object.entries(aiSpecs)
                 .filter(([_, v]) => v)
@@ -246,8 +213,8 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
         if (validSpecs.length === 0) {
             return {
                 category: targetCategoryName,
-                specs: generateFallbackSpecs(productTitle, targetCategoryName),
-                message: "Specs estimated (Scraping blocked)"
+                specs: [],
+                message: "Specs not available (Scraping blocked)"
             };
         }
 
@@ -281,8 +248,8 @@ export async function fetchRealSpecs(productTitle: string): Promise<{
 
         return {
             category: targetCategoryName,
-            specs: generateFallbackSpecs(productTitle, targetCategoryName),
-            message: "Failed to fetch, showing estimates"
+            specs: [],
+            message: "Failed to fetch specifications"
         };
     }
 }

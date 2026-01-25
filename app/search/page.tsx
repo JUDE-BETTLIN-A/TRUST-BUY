@@ -56,11 +56,9 @@ function SearchPageContent() {
         let finalData = data;
 
         // CLIENT-SIDE SAFETY: If for some reason the server returned empty, 
-        // try a direct mock search as a last resort
+        // we respect the no-mock policy.
         if (!data || data.length === 0) {
-          console.log(`Server returned 0 results for "${searchQuery}", trying client-side mock fallback...`);
-          const { searchProducts: searchMock } = await import('@/lib/mock-scraper');
-          finalData = await searchMock(searchQuery, 1);
+          console.log(`Server returned 0 results for "${searchQuery}".`);
         }
 
         console.log(`Search Results Loaded: ${finalData.length} items for "${searchQuery}"`);

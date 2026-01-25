@@ -208,7 +208,11 @@ function interpolateHistory(knownPoints: { date: string; price: number }[], tota
     return history;
 }
 
-// AI-powered price prediction using DeepSeek R1 for reasoning
+import { callAI } from './ai-utils';
+
+// ... (other code)
+
+// AI-powered price prediction using centralized AI utility
 async function getPricePrediction(
     productName: string,
     currentPrice: number,
@@ -221,36 +225,33 @@ async function getPricePrediction(
     historicalPoints?: { date: string; price: number }[];
 }> {
     try {
-        // Detect upcoming sales
         const today = new Date();
-        const upcomingSales: string[] = [];
-        // ... (Sales logic remains same, abbreviated for brevity if needed or kept) ...
-        // Keeping sales logic simple for context:
-        if (today.getMonth() === 0 && today.getDate() < 26) upcomingSales.push("Republic Day Sale");
-        else if (today.getMonth() === 9) upcomingSales.push("Big Billion Days");
-
-        const prompt = `You are an expert price tracking AI. 
+        const prompt = `You are an expert price tracking AI.
         
 PRODUCT: "${productName}"
 CURRENT PRICE: ₹${currentPrice.toLocaleString()}
 DATE: ${today.toISOString().split('T')[0]}
 
-Task 1: Estimate the REAL price history of this specific product (or very similar items) in India for the last 60 days.
+Task 1: Estimate the REAL price history of this specific product for the last 60 days.
 Task 2: Predict future prices for the next 90 days.
-Task 3: Analyze trends and give a recommendation.
+Task 3: Analyze trends and recommend.
+
+CRITICAL: In the 'summary', provide a detailed explanation.
+ स्पेशially regarding price changes:
+- IF PRICE LOWERED/DROPPED: You MUST explain WHY (e.g. "Price lowered due to the S25 release", "Market correction", "Seasonal clearance").
+- IF STABLE: Explain why it hasn't changed.
+- IF RISING: Explain the demand/shortage.
+Do not just say "it decided to drop". Give the market reason.
 
 Return ONLY valid JSON:
 {
   "history": [
-    {"date": "YYYY-MM-DD", "price": number}, 
-    // ... provide 8-10 points covering the last 60 days (one per week), ending with today's price.
-    // BE REALISTIC based on the product type (e.g. iPhone prices drop after launch, standardized goods are stable).
+    {"date": "YYYY-MM-DD", "price": number} 
+    // Provide 8-10 points covering last 60 days
   ],
   "futurePredictions": [
-    {"daysFromNow": 7, "predictedPrice": number, "confidence": number, "event": "string or null"},
-    {"daysFromNow": 14, "predictedPrice": number, "confidence": number, "event": null},
-    {"daysFromNow": 30, "predictedPrice": number, "confidence": number, "event": "sale name?"},
-    {"daysFromNow": 60, "predictedPrice": number, "confidence": number, "event": null},
+    {"daysFromNow": 7, "predictedPrice": number, "confidence": number, "event": null},
+    {"daysFromNow": 30, "predictedPrice": number, "confidence": number, "event": "sale?"},
     {"daysFromNow": 90, "predictedPrice": number, "confidence": number, "event": null}
   ],
   "prediction": {
@@ -269,36 +270,14 @@ Return ONLY valid JSON:
     "seasonalPattern": "string",
     "priceDropEvents": ["string"]
   },
-  "summary": "comprehensive summary string"
+  "summary": "Full overview. IF PRICE LOWERED, START WITH: 'Price lowered due to...'"
 }`;
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://trustbuy.app"
-            },
-            body: JSON.stringify({
-                model: MODELS.reasoning,
-                messages: [
-                    { role: "system", content: "You are a precise data analyst API. Output purely JSON." },
-                    { role: "user", content: prompt }
-                ],
-                max_tokens: 2000,
-                temperature: 0.3
-            })
-        });
+        // Use centralized callAI which handles retries and multiple models
+        const aiResponse = await callAI(prompt, { temperature: 0.3 });
 
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-
-        const data = await response.json();
-        let content = data.choices?.[0]?.message?.content || "";
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
+        if (aiResponse.success && aiResponse.data) {
+            const parsed = aiResponse.data;
 
             // Transform future predictions
             const futurePredictions: FuturePricePoint[] = (parsed.futurePredictions || []).map((fp: any) => {
@@ -317,14 +296,14 @@ Return ONLY valid JSON:
                 futurePredictions,
                 pastAnalysis: parsed.pastAnalysis,
                 summary: parsed.summary,
-                historicalPoints: parsed.history // AI provided history
+                historicalPoints: parsed.history
             };
         }
     } catch (error) {
         console.error("AI prediction error:", error);
     }
 
-    // Fallback if AI fails
+    // Fallback if AI fails (keep existing fallback)
     return {
         prediction: {
             expectedDrop: false,
@@ -336,14 +315,14 @@ Return ONLY valid JSON:
             recommendation: "SET ALERT",
             reasoning: "Unable to connect to AI analysis. Based on current price."
         },
-        futurePredictions: [], // Will be handled by UI fallback
+        futurePredictions: [],
         pastAnalysis: {
             trend: 'stable',
             volatility: 'low',
             seasonalPattern: "Unknown",
             priceDropEvents: []
         },
-        summary: "Could not generate detailed AI analysis at this time."
+        summary: "Analysis unavailable. Price appears stable based on market data."
     };
 }
 

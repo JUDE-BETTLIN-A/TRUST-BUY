@@ -15,10 +15,10 @@ export function TrendingCard({ product }: TrendingCardProps) {
 
     if (!isVisible) return null;
 
-    // Synthesize original price for visual 'deal' effect
+    // Use real original price if available
     const priceNum = product.price ? parseFloat(product.price.replace(/[^0-9.]/g, '')) : 0;
-    const originalPrice = !isNaN(priceNum) && priceNum > 0 ? `₹${(priceNum * 1.25).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : null;
-    
+    const originalPrice = product.originalPrice;
+
     // Calculate discount percentage based on original price
     let discountPercent = 0;
     if (product.originalPrice) {
@@ -62,18 +62,22 @@ export function TrendingCard({ product }: TrendingCardProps) {
                 </div>
                 <button
                     onClick={() => {
-                        if (product.link) {
-                            window.open(product.link, '_blank');
-                        } else {
-                            // Fallback to search if no link available
-                            router.push(`/search?q=${encodeURIComponent(product.title)}`);
-                        }
+                        const params = new URLSearchParams({
+                            title: product.title,
+                            price: product.price,
+                            image: product.image || "",
+                            store: product.storeName,
+                            link: product.link || "",
+                            rating: product.rating.toString(),
+                            originalPrice: product.originalPrice || ""
+                        });
+                        router.push(`/product/${product.id}?${params.toString()}`);
                     }}
                     className="w-full bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white py-2 rounded-xl text-sm font-semibold group-hover:bg-primary group-hover:text-white transition-all"
                 >
                     View Deal
                 </button>
             </div>
-        </article>
+        </article >
     );
 }

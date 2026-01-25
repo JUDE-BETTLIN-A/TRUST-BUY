@@ -17,6 +17,7 @@ function ProductSpecContent() {
     const storeName = searchParams.get('store') || "Store";
     const link = searchParams.get('link') || "#";
     const rating = parseFloat(searchParams.get('rating') || "4.5");
+    const originalPrice = searchParams.get('originalPrice');
 
     // Unified Specs State
     const [specs, setSpecs] = useState<ProductSpecs | null>(null);
@@ -67,8 +68,8 @@ function ProductSpecContent() {
             // Note: We use extracted as base, but allow undefined to avoid fake data
             setSpecs(prev => ({
                 ...prev,
-                ram: prev?.ram || extracted.ram || (title.includes('iPhone') ? '6GB/8GB' : undefined),
-                storage: prev?.storage || extracted.storage || '128 GB Storage',
+                ram: prev?.ram || extracted.ram,
+                storage: prev?.storage || extracted.storage,
                 display: prev?.display || extracted.display,
                 camera: prev?.camera || extracted.camera,
                 processor: prev?.processor || extracted.processor,
@@ -97,13 +98,20 @@ function ProductSpecContent() {
                 {/* Left Column: Image & Key Actions */}
                 <div className="lg:col-span-4 flex flex-col gap-6">
                     <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 flex items-center justify-center relative group">
-                        <div className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                            {(() => {
-                                let hash = 0;
-                                for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
-                                return (Math.abs(hash) % 20) + 10;
-                            })()}% OFF
-                        </div>
+                        {originalPrice && (
+                            <div className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                                {(() => {
+                                    try {
+                                        const p = parseFloat(price.replace(/[^0-9.]/g, ''));
+                                        const op = parseFloat(originalPrice.replace(/[^0-9.]/g, ''));
+                                        if (!isNaN(p) && !isNaN(op) && op > p) {
+                                            return Math.round(((op - p) / op) * 100) + "% OFF";
+                                        }
+                                        return "SALE";
+                                    } catch (e) { return "SALE"; }
+                                })()}
+                            </div>
+                        )}
                         <Image
                             src={image || "/placeholder.png"}
                             alt={title}
@@ -171,7 +179,9 @@ function ProductSpecContent() {
                                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Best Price</p>
                                 <div className="flex items-baseline gap-3">
                                     <span className="text-4xl font-bold text-gray-900 dark:text-white">{price}</span>
-                                    <span className="text-lg text-gray-400 line-through">₹{(parseInt(price.replace(/[^\d]/g, '')) * 1.2).toLocaleString('en-IN')}</span>
+                                    {originalPrice && (
+                                        <span className="text-lg text-gray-400 line-through">{originalPrice}</span>
+                                    )}
                                 </div>
                                 <p className="text-xs text-gray-400 mt-1">*inclusive of all taxes</p>
                             </div>
