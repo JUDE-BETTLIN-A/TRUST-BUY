@@ -5,41 +5,51 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { analyzeProductPrice, PriceAnalysis } from '@/lib/price-analysis';
 
-// Price History Chart Component
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, AreaChart, Area } from 'recharts';
+
+// Price History Chart
 function PriceHistoryChart({ data, label }: { data: { date: string; price: number }[]; label: string }) {
-  const prices = data.map(d => d.price);
-  const maxPrice = Math.max(...prices);
-  const minPrice = Math.min(...prices);
-  const range = maxPrice - minPrice || 1;
+  // Format data for Recharts
+  const chartData = data.map(d => ({
+    date: new Date(d.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    price: d.price,
+    fullDate: d.date
+  }));
+
+  const minPrice = Math.min(...data.map(d => d.price)) * 0.95;
+  const maxPrice = Math.max(...data.map(d => d.price)) * 1.05;
 
   return (
-    <div className="w-full">
-      <h4 className="text-sm font-semibold text-gray-600 mb-2">{label}</h4>
-      <div className="h-40 flex items-end gap-0.5 bg-gray-50 rounded-xl p-3">
-        {data.map((point, i) => {
-          const height = ((point.price - minPrice) / range) * 100;
-          const isLast = i === data.length - 1;
-          return (
-            <div
-              key={i}
-              className="flex-1 flex flex-col items-center justify-end group relative"
-            >
-              <div
-                className={`w-full rounded-t transition-all ${isLast ? 'bg-primary' : 'bg-primary/40'} hover:bg-primary/70`}
-                style={{ height: `${Math.max(height, 3)}%` }}
-              />
-              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 shadow-lg">
-                ₹{point.price.toLocaleString()}<br />
-                <span className="text-gray-400">{point.date}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
-        <span>{data[0]?.date}</span>
-        <span>{data[data.length - 1]?.date}</span>
-      </div>
+    <div className="w-full h-[250px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+          <XAxis
+            dataKey="date"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 10, fill: '#9ca3af' }}
+            minTickGap={30}
+          />
+          <YAxis
+            hide
+            domain={[minPrice, maxPrice]}
+          />
+          <Tooltip
+            contentStyle={{ backgroundColor: '#1f2937', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px' }}
+            formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Price']}
+            labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
+          />
+          <Line
+            type="monotone"
+            dataKey="price"
+            stroke="#4f46e5"
+            strokeWidth={3}
+            dot={false}
+            activeDot={{ r: 6, fill: '#4f46e5', stroke: '#fff', strokeWidth: 2 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -52,61 +62,59 @@ function FuturePredictionsChart({
   currentPrice: number;
   predictions: { date: string; predictedPrice: number; confidence: number; event?: string }[]
 }) {
-  const allPrices = [currentPrice, ...predictions.map(p => p.predictedPrice)];
-  const maxPrice = Math.max(...allPrices);
-  const minPrice = Math.min(...allPrices);
-  const range = maxPrice - minPrice || 1;
+  // Combine current price as start point
+  const chartData = [
+    { date: 'Today', price: currentPrice, type: 'current', fullDate: new Date().toISOString().split('T')[0] },
+    ...predictions.map(p => ({
+      date: new Date(p.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      price: p.predictedPrice,
+      type: 'prediction',
+      fullDate: p.date,
+      event: p.event
+    }))
+  ];
+
+  const minPrice = Math.min(...chartData.map(d => d.price)) * 0.9;
+  const maxPrice = Math.max(...chartData.map(d => d.price)) * 1.1;
 
   return (
-    <div className="w-full">
-      <div className="flex items-end gap-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 min-h-[180px]">
-        {/* Current Price */}
-        <div className="flex flex-col items-center flex-1">
-          <div className="relative w-full flex justify-center">
-            <div
-              className="w-4 bg-primary rounded-t-full"
-              style={{ height: `${((currentPrice - minPrice) / range) * 120 + 20}px` }}
-            />
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-bold px-2 py-1 rounded whitespace-nowrap">
-              Now
-            </div>
-          </div>
-          <span className="text-xs font-bold text-gray-900 mt-2">₹{currentPrice.toLocaleString()}</span>
-          <span className="text-[10px] text-gray-500">Today</span>
-        </div>
-
-        {/* Future Predictions */}
-        {predictions.map((pred, i) => {
-          const isLower = pred.predictedPrice < currentPrice;
-          const diff = ((pred.predictedPrice - currentPrice) / currentPrice * 100).toFixed(1);
-
-          return (
-            <div key={i} className="flex flex-col items-center flex-1 group relative">
-              <div className="relative w-full flex justify-center">
-                <div
-                  className={`w-4 rounded-t-full ${isLower ? 'bg-green-500' : 'bg-amber-500'}`}
-                  style={{ height: `${((pred.predictedPrice - minPrice) / range) * 120 + 20}px` }}
-                />
-                {pred.event && (
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
-                    {pred.event.length > 12 ? pred.event.slice(0, 12) + '...' : pred.event}
-                  </div>
-                )}
-              </div>
-              <span className={`text-xs font-bold mt-2 ${isLower ? 'text-green-600' : 'text-amber-600'}`}>
-                ₹{pred.predictedPrice.toLocaleString()}
-              </span>
-              <span className={`text-[10px] ${isLower ? 'text-green-500' : 'text-amber-500'}`}>
-                {isLower ? '↓' : '↑'}{Math.abs(Number(diff))}%
-              </span>
-              <span className="text-[10px] text-gray-500 mt-0.5">
-                {new Date(pred.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-              </span>
-              <span className="text-[9px] text-gray-400">{pred.confidence}% conf</span>
-            </div>
-          );
-        })}
-      </div>
+    <div className="w-full h-[250px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+          <defs>
+            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+          <XAxis
+            dataKey="date"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 10, fill: '#9ca3af' }}
+          />
+          <YAxis
+            hide
+            domain={[minPrice, maxPrice]}
+          />
+          <Tooltip
+            contentStyle={{ backgroundColor: '#1f2937', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px' }}
+            formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Price']}
+          />
+          <ReferenceLine x="Today" stroke="#4f46e5" strokeDasharray="3 3" />
+          <Area
+            type="monotone"
+            dataKey="price"
+            stroke="#8b5cf6"
+            strokeWidth={3}
+            fillOpacity={1}
+            fill="url(#colorPrice)"
+            dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#8b5cf6' }}
+            activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -118,6 +126,7 @@ function AnalysisContent() {
   const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'prediction' | 'history'>('prediction');
 
   const productName = searchParams.get('name') || 'Unknown Product';
   const productPrice = searchParams.get('price') || '0';
@@ -159,11 +168,6 @@ function AnalysisContent() {
         <div className="text-center max-w-md">
           <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Analyzing Price Data</h2>
-          <p className="text-gray-500 mb-4">Our AI is analyzing 60 days of price history and predicting future trends...</p>
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-            <span className="material-symbols-outlined text-sm animate-pulse">psychology</span>
-            Using DeepSeek R1 for reasoning
-          </div>
         </div>
       </div>
     );
@@ -265,76 +269,130 @@ function AnalysisContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Charts */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Past Price History */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">history</span>
-                Past 60 Days Price History
-              </h3>
-              <PriceHistoryChart data={priceHistory} label="" />
-            </div>
-
-            {/* Future Predictions */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-purple-600">auto_awesome</span>
-                AI Future Price Predictions
-              </h3>
-              <FuturePredictionsChart
-                currentPrice={analysis.currentPrice}
-                predictions={futurePredictions.length > 0 ? futurePredictions : [
-                  { date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.97), confidence: 75 },
-                  { date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.95), confidence: 70 },
-                  { date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.92), confidence: 65, event: 'Expected Sale' },
-                  { date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.94), confidence: 55 },
-                  { date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.90), confidence: 50 }
-                ]}
-              />
-              <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-green-500 rounded"></div>
-                  <span>Lower than now</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-amber-500 rounded"></div>
-                  <span>Higher than now</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-purple-600 rounded"></div>
-                  <span>Sale event</span>
-                </div>
+            {/* TABS Navigation */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="flex border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab('prediction')}
+                  className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'prediction' ? 'bg-primary/5 text-primary border-b-2 border-primary' : 'text-gray-500 hover:bg-gray-50'}`}
+                >
+                  <span className="material-symbols-outlined">auto_awesome</span>
+                  AI Prediction
+                </button>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'history' ? 'bg-primary/5 text-primary border-b-2 border-primary' : 'text-gray-500 hover:bg-gray-50'}`}
+                >
+                  <span className="material-symbols-outlined">history</span>
+                  Price History
+                </button>
               </div>
 
-              {/* AI Price Summary - Now under predictions */}
-              <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-xl p-5">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-white text-xl">psychology</span>
+              <div className="p-6">
+                {/* PREDICTION TAB */}
+                {activeTab === 'prediction' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-purple-600">show_chart</span>
+                        Future Trend Forecast
+                        {analysis.predictionSource === 'Python/Prophet' && (
+                          <span className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                            <span className="material-symbols-outlined text-[12px]">psychology</span>
+                            Prophet ML Model
+                          </span>
+                        )}
+                      </h3>
+                    </div>
+
+                    <FuturePredictionsChart
+                      currentPrice={analysis.currentPrice}
+                      predictions={futurePredictions.length > 0 ? futurePredictions : [
+                        { date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.97), confidence: 75 },
+                        { date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.95), confidence: 70 },
+                        { date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.92), confidence: 65, event: 'Expected Sale' },
+                        { date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.94), confidence: 55 },
+                        { date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.90), confidence: 50 }
+                      ]}
+                    />
+                    <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-green-500 rounded"></div>
+                        <span>Lower than now</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-amber-500 rounded"></div>
+                        <span>Higher than now</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-purple-600 rounded"></div>
+                        <span>Sale event</span>
+                      </div>
+                    </div>
+
+                    {/* AI Price Summary */}
+                    <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-xl p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-white text-xl">psychology</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 mb-1">AI Price Summary</h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Predicted Price Range */}
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Next 90 Days Range</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center p-4 bg-green-50 rounded-xl">
+                          <p className="text-xs text-green-600 mb-1 font-bold">LOWEST</p>
+                          <p className="text-xl font-bold text-green-700">₹{prediction.predictedLowestPrice.toLocaleString()}</p>
+                        </div>
+                        <div className="text-center p-4 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500 mb-1 font-bold">CURRENT</p>
+                          <p className="text-xl font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString()}</p>
+                        </div>
+                        <div className="text-center p-4 bg-red-50 rounded-xl">
+                          <p className="text-xs text-red-600 mb-1 font-bold">HIGHEST</p>
+                          <p className="text-xl font-bold text-red-700">₹{prediction.predictedHighestPrice.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                )}
+
+                {/* HISTORY TAB */}
+                {activeTab === 'history' && (
                   <div>
-                    <h4 className="font-bold text-gray-900 mb-1">AI Price Summary</h4>
-                    <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary">history</span>
+                      Past 60 Days Price History
+                    </h3>
+                    <PriceHistoryChart data={priceHistory} label="" />
 
-            {/* Predicted Price Range */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Predicted Price Range (Next 90 Days)</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-green-50 rounded-xl">
-                  <p className="text-sm text-green-600 mb-1">Predicted Low</p>
-                  <p className="text-2xl font-bold text-green-700">₹{prediction.predictedLowestPrice.toLocaleString()}</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-xl">
-                  <p className="text-sm text-gray-600 mb-1">Current</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString()}</p>
-                </div>
-                <div className="text-center p-4 bg-red-50 rounded-xl">
-                  <p className="text-sm text-red-600 mb-1">Predicted High</p>
-                  <p className="text-2xl font-bold text-red-700">₹{prediction.predictedHighestPrice.toLocaleString()}</p>
-                </div>
+                    <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-3 border border-gray-100 rounded-lg">
+                        <p className="text-xs text-gray-500">Average</p>
+                        <p className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3 border border-gray-100 rounded-lg">
+                        <p className="text-xs text-gray-500">Highest</p>
+                        <p className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3 border border-gray-100 rounded-lg">
+                        <p className="text-xs text-gray-500">Lowest</p>
+                        <p className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3 border border-gray-100 rounded-lg">
+                        <p className="text-xs text-gray-500">Volatilty</p>
+                        <p className="font-bold text-amber-600 capitalize">{pastAnalysis.volatility}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

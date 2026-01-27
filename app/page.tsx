@@ -41,10 +41,10 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col justify-center items-center px-4 text-center py-16 md:py-24">
+      <main className="flex-1 flex flex-col justify-center items-center px-4 text-center py-12 md:py-16">
         <div className="max-w-4xl mx-auto">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -53,13 +53,13 @@ export default function LandingPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 tracking-tight mb-6 leading-tight">
+          <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 tracking-tight mb-4 leading-tight">
             Shop Smarter. <br />
             <span className="text-primary">Never Overpay Again.</span>
           </h1>
 
           {/* Subheadline */}
-          <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-8 leading-relaxed">
             Your personal shopping assistant that tracks prices, predicts drops, and helps you buy at the perfect moment. Private, secure, and always on your side.
           </p>
 
@@ -82,7 +82,7 @@ export default function LandingPage() {
         </div>
 
         {/* Feature Grid */}
-        <div id="features" className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 max-w-5xl w-full px-4">
+        <div id="features" className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-12 max-w-5xl w-full px-4">
           <div className="bg-white border border-gray-200 p-6 rounded-2xl text-left hover:shadow-lg hover:border-gray-300 transition-all duration-300 group">
             <div className="bg-emerald-100 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <TrendingDown className="text-emerald-600 h-6 w-6" />

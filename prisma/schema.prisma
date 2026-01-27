@@ -3,21 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?   // Hashed password for credentials login
   name            String?
   image           String?
-  shippingAddress String?  // For Agent
-  paymentMethod   String?  // For Agent (e.g., "Visa ending 4242")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  role            String    @default("USER") // USER or ADMIN
+  isActive        Boolean   @default(true)
+  shippingAddress String?   // For Agent
+  paymentMethod   String?   // For Agent (e.g., "Visa ending 4242")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   alerts          Alert[]
   orders          Order[]
+  history         History[]
 }
 
 model Product {
@@ -65,4 +69,18 @@ model Order {
   productImage String
   status       String   @default("Processing") // Processing, Shipped, Delivered
   orderedAt    DateTime @default(now())
+}
+
+model History {
+  id             String   @id @default(cuid())
+  userEmail      String
+  user           User     @relation(fields: [userEmail], references: [email])
+  query          String
+  image          String?
+  topResultTitle String?
+  price          String?
+  link           String?
+  timestamp      DateTime @default(now())
+
+  @@index([userEmail])
 }

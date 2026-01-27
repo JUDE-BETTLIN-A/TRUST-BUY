@@ -1,10 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { signupUser } from "./actions";
 
 export default function SignUpPage() {
+    const router = useRouter();
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState(false);
 
     const handleGoogleLogin = async () => {
         await signIn("google", { callbackUrl: "/home" });
@@ -12,13 +18,43 @@ export default function SignUpPage() {
 
     const handleEmailSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        setError(null);
+        setLoading(true);
+
         const formData = new FormData(e.currentTarget);
-        await signIn("credentials", {
-            email: formData.get("email"),
-            password: formData.get("password"),
-            name: formData.get("name"),
-            callbackUrl: "/home"
-        });
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
+        const name = formData.get("name") as string;
+
+        try {
+            // First create user in database
+            const result = await signupUser(email, password, name);
+
+            if (!result.success) {
+                setError(result.message);
+                setLoading(false);
+                return;
+            }
+
+            setSuccess(true);
+            
+            // Auto sign in after successful signup
+            const signInResult = await signIn("credentials", {
+                email,
+                password,
+                redirect: false,
+            });
+
+            if (signInResult?.error) {
+                // Signup succeeded but auto-login failed, redirect to signin
+                router.push("/auth/signin?message=Account created. Please sign in.");
+            } else {
+                router.push("/home");
+            }
+        } catch (err) {
+            setError("An unexpected error occurred. Please try again.");
+            setLoading(false);
+        }
     };
 
     return (
@@ -93,6 +129,18 @@ export default function SignUpPage() {
 
                         {/* Email Form */}
                         <form onSubmit={handleEmailSignUp} className="space-y-4">
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">error</span>
+                                    {error}
+                                </div>
+                            )}
+                            {success && (
+                                <div className="bg-green-50 border border-green-200 text-green-600 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">check_circle</span>
+                                    Account created! Signing you in...
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                                 <input
@@ -127,9 +175,17 @@ export default function SignUpPage() {
 
                             <button
                                 type="submit"
-                                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 transition-all transform hover:-translate-y-0.5 active:scale-[0.98] mt-2"
+                                disabled={loading}
+                                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 transition-all transform hover:-translate-y-0.5 active:scale-[0.98] mt-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                             >
-                                Create Account
+                                {loading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Creating Account...
+                                    </>
+                                ) : (
+                                    "Create Account"
+                                )}
                             </button>
                         </form>
 

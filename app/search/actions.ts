@@ -1,11 +1,10 @@
 "use server";
 
 import { scrapeProductsReal } from '@/lib/scraper';
-// Mock imported removed as per user request to rely on real data
-// import { searchProducts as searchProductsMock } from '@/lib/mock-scraper';
 import { Product } from '@/lib/mock-scraper';
 import { aggregateProducts } from '@/lib/aggregator';
 import { searchAll } from '@/lib/search'; // NEW Aggregator
+import { cleanProductUrl } from '@/lib/url-utils';
 
 /**
  * Search for products - simplified and direct
@@ -38,7 +37,7 @@ export async function searchProductsAction(query: string, page: number = 1): Pro
                 bestPrice: false,
                 rating: item.rating,
                 trustScoreBadge: (item.trust_score || 0) > 80 ? "Excellent" : "Good",
-                link: item.product_url,
+                link: cleanProductUrl(item.product_url),
                 source: 'main'
             }));
             console.log(`[Search] Aggregator found ${results.length} items.`);
@@ -49,7 +48,12 @@ export async function searchProductsAction(query: string, page: number = 1): Pro
         if (results.length < 5) {
             console.log("[Search] Aggregator low results, fetching legacy fallback...");
             const legacyResults = await scrapeProductsReal(cleanQuery, page);
-            results = [...results, ...legacyResults];
+            // Also clean legacy result links
+            const cleanLegacyResults = legacyResults.map(p => ({
+                ...p,
+                link: cleanProductUrl(p.link)
+            }));
+            results = [...results, ...cleanLegacyResults];
         }
 
         if (results.length === 0) {

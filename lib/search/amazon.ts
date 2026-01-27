@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { UnifiedSearchResult } from './types';
+import { cleanProductUrl } from '@/lib/url-utils';
 
 // Amazon is extremely aggressive with anti-bot.
 // We will use a "Search Aggregator" proxy approach via DuckDuckGo/Bing if direct fails,
@@ -56,7 +57,7 @@ export async function searchAmazon(query: string): Promise<UnifiedSearchResult[]
                         rating_count: parseInt(ratingCountText) || 0,
                         seller: 'Amazon Seller', // Hard to get from search page without click
                         source: 'Amazon',
-                        product_url: link ? `https://www.amazon.in${link}` : url
+                        product_url: link ? cleanProductUrl(`https://www.amazon.in${link}`) : url
                     });
                 }
             } catch (innerErr) {

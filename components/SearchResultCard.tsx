@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { createAlert } from '@/app/alerts/actions';
+import { cleanProductUrl } from '@/lib/url-utils';
 
 interface SearchResultCardProps {
     id: number;
@@ -122,7 +123,7 @@ export function SearchResultCard({
                     {/* Price Analysis Link */}
                     <div className="mt-3">
                         <Link
-                            href={`/analysis?name=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&url=${encodeURIComponent(link || '')}&source=${encodeURIComponent(storeName)}`}
+                            href={`/analysis?name=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&url=${encodeURIComponent(cleanProductUrl(link))}&source=${encodeURIComponent(storeName)}`}
                             className="text-xs font-semibold text-primary flex items-center gap-1 hover:text-primary/80 transition-colors"
                         >
                             <span className="material-symbols-outlined text-sm">ssid_chart</span>

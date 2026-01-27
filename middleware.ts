@@ -8,6 +8,11 @@ export default auth(async (req) => {
   const session = req.auth;
   const path = req.nextUrl.pathname;
 
+  // Skip API routes entirely - let them handle their own auth
+  if (path.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   // Protect specific routes
   const protectedRoutes = ["/budget", "/alerts", "/analysis", "/seller"];
 
@@ -24,5 +29,14 @@ export default auth(async (req) => {
 });
 
 export const config = {
-  matcher: ["/budget/:path*", "/alerts/:path*", "/analysis/:path*", "/seller/:path*", "/auth/signin"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

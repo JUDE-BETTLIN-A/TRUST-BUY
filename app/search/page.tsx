@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react';
 import { SearchResultCard } from '@/components/SearchResultCard';
 import { Product } from '@/lib/mock-scraper';
 import { addToHistory } from '@/lib/history';
+import { addHistoryToDB } from '../history/actions';
 import { searchProductsAction } from './actions';
 import { FilterSidebar, FilterState } from './components/FilterSidebar';
 import { getUserItem, setUserItem, STORAGE_KEYS } from '@/lib/user-storage';
@@ -69,13 +70,22 @@ function SearchPageContent() {
         if (finalData.length > 0 && searchQuery) {
           const topProduct = finalData[0];
           const displayQuery = query || category || "Search";
-          addToHistory({
+          const historyItem = {
             query: displayQuery,
             image: topProduct.image,
             topResultTitle: topProduct.title,
             price: topProduct.price,
             link: topProduct.link
-          }, userId);
+          };
+          
+          // Save to DB if logged in, otherwise localStorage
+          if (session?.user?.email) {
+            addHistoryToDB(historyItem).catch(err => {
+              console.error("Failed to save history to DB:", err);
+            });
+          } else {
+            addToHistory(historyItem, userId);
+          }
         }
       }).catch(async (err) => {
         console.error("Search Action Error:", err);

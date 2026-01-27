@@ -22,6 +22,18 @@ interface AlertItemProps {
 
 export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
     const [removed, setRemoved] = useState(false);
+    const [imageError, setImageError] = useState(false);
+
+    // Check if image URL is valid - more comprehensive check
+    const hasValidImage = Boolean(
+        alert.productImage && 
+        typeof alert.productImage === 'string' &&
+        alert.productImage.length > 10 &&
+        alert.productImage.startsWith('http') && 
+        !alert.productImage.includes('undefined') &&
+        !alert.productImage.includes('null') &&
+        !imageError
+    );
 
 
     const handleRemove = async () => {
@@ -46,13 +58,21 @@ export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
     return (
         <div className="bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex gap-4 items-center shadow-sm hover:shadow-md transition-all">
             <div className="size-20 shrink-0 bg-gray-50 dark:bg-white/5 rounded-lg p-2 flex items-center justify-center">
-                <Image
-                    src={alert.productImage}
-                    alt={alert.productTitle}
-                    width={80}
-                    height={80}
-                    className="object-contain max-h-full mix-blend-multiply dark:mix-blend-normal"
-                />
+                {hasValidImage ? (
+                    <Image
+                        src={alert.productImage}
+                        alt={alert.productTitle}
+                        width={80}
+                        height={80}
+                        className="object-contain max-h-full mix-blend-multiply dark:mix-blend-normal"
+                        onError={() => setImageError(true)}
+                        unoptimized
+                    />
+                ) : (
+                    <span className="material-symbols-outlined text-3xl text-gray-400">
+                        local_offer
+                    </span>
+                )}
             </div>
             <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-gray-900 dark:text-white truncate">

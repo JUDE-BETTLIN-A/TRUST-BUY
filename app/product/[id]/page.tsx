@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { extractSpecs, ProductSpecs } from '@/lib/specs-extractor';
 import { fetchRealSpecs } from './actions';
+import { cleanProductUrl, cleanProductTitle } from '@/lib/url-utils';
 
 function ProductSpecContent() {
     const searchParams = useSearchParams();
@@ -141,7 +142,7 @@ function ProductSpecContent() {
 
                     {/* Price Analysis Button */}
                     <Link
-                        href={`/analysis?name=${encodeURIComponent(title)}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&url=${encodeURIComponent(link || '')}&source=${encodeURIComponent(storeName)}`}
+                        href={`/analysis?name=${encodeURIComponent(cleanProductTitle(title))}&price=${encodeURIComponent(price)}&image=${encodeURIComponent(image)}&url=${encodeURIComponent(link.includes('amazon') && link.includes('/dp/') ? `https://amazon.in/dp/${link.split('/dp/')[1].substring(0, 10)}` : cleanProductUrl(link))}&source=${encodeURIComponent(storeName)}`}
                         className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
                     >
                         <span className="material-symbols-outlined">analytics</span>

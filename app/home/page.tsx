@@ -233,9 +233,9 @@ export default function HomePage() {
               <span className="material-symbols-outlined text-gray-400 group-hover:text-primary text-xl">sports_soccer</span>
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Sports</span>
             </button>
-            <button onClick={() => router.push('/search?category=Auto')} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-full hover:border-primary/50 hover:shadow-md transition-all group">
+            <button onClick={() => router.push('/search?category=Car+Accessories')} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-full hover:border-primary/50 hover:shadow-md transition-all group">
               <span className="material-symbols-outlined text-gray-400 group-hover:text-primary text-xl">directions_car</span>
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Auto</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Car Accessories</span>
             </button>
           </div>
         </div>

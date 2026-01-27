@@ -4,18 +4,50 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
 import { getHistory, HistoryItem, clearHistory } from '@/lib/history';
+import { getHistoryFromDB, clearHistoryFromDB, HistoryItem as DBHistoryItem } from './actions';
 
 export default function HistoryPage() {
     const router = useRouter();
+    const { data: session, status } = useSession();
     const [history, setHistory] = useState<HistoryItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setHistory(getHistory());
-    }, []);
+        const loadHistory = async () => {
+            setLoading(true);
+            
+            if (session?.user?.email) {
+                // Logged in: fetch from database
+                try {
+                    const dbHistory = await getHistoryFromDB();
+                    setHistory(dbHistory as HistoryItem[]);
+                } catch (error) {
+                    console.error("Failed to load history from DB:", error);
+                    setHistory([]);
+                }
+            } else if (status === 'unauthenticated') {
+                // Guest: use localStorage
+                setHistory(getHistory());
+            }
+            
+            setLoading(false);
+        };
 
-    const handleClear = () => {
-        clearHistory();
+        if (status !== 'loading') {
+            loadHistory();
+        }
+    }, [session, status]);
+
+    const handleClear = async () => {
+        if (session?.user?.email) {
+            // Logged in: clear from database
+            await clearHistoryFromDB();
+        } else {
+            // Guest: clear from localStorage
+            clearHistory();
+        }
         setHistory([]);
     };
 
@@ -33,8 +65,13 @@ export default function HistoryPage() {
                         <h1 className="text-2xl font-bold font-display text-gray-900 dark:text-white">
                             Search History
                         </h1>
+                        {session?.user && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                                Synced
+                            </span>
+                        )}
                     </div>
-                    {history.length > 0 && (
+                    {history.length > 0 && !loading && (
                         <button
                             onClick={handleClear}
                             className="text-red-500 hover:text-red-600 text-sm font-semibold flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -45,7 +82,12 @@ export default function HistoryPage() {
                     )}
                 </header>
 
-                {history.length > 0 ? (
+                {loading ? (
+                    <div className="text-center py-20">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-500">Loading your history...</p>
+                    </div>
+                ) : history.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4">
                         {history.map((item) => (
                             <div

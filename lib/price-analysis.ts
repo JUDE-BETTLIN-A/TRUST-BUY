@@ -1,7 +1,9 @@
 "use server";
 
+import { callAI } from './ai-utils';
+
 // Advanced Price Analysis and Prediction Service
-// Uses multiple AI models via OpenRouter for accurate predictions
+// Uses Python ML Backend (Prophet) if available, with Generative AI fallback
 
 const OPENROUTER_API_KEY = "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";
 
@@ -57,6 +59,7 @@ export interface PriceAnalysis {
         priceDropSoon: boolean;
         upcomingSale: string | null;
     };
+    predictionSource?: 'Python/Prophet' | 'Generative AI';
 }
 
 // Generate realistic price history based on product category
@@ -67,8 +70,6 @@ function generatePriceHistory(currentPrice: number, productName: string): PriceH
 
     // Detect product category for realistic patterns
     const isPhone = /iphone|samsung|pixel|oneplus|redmi|realme/i.test(productName);
-    const isLaptop = /laptop|macbook|thinkpad|ideapad/i.test(productName);
-    const isTV = /tv|television|smart tv/i.test(productName);
     const isGaming = /ps5|playstation|xbox|nintendo/i.test(productName);
 
     // Generate 60 days of price history
@@ -208,10 +209,6 @@ function interpolateHistory(knownPoints: { date: string; price: number }[], tota
     return history;
 }
 
-import { callAI } from './ai-utils';
-
-// ... (other code)
-
 // AI-powered price prediction using centralized AI utility
 async function getPricePrediction(
     productName: string,
@@ -315,7 +312,7 @@ Return ONLY valid JSON:
             recommendation: "SET ALERT",
             reasoning: "Unable to connect to AI analysis. Based on current price."
         },
-        futurePredictions: [],
+        futurePredictions: [], // Will be handled by UI fallback
         pastAnalysis: {
             trend: 'stable',
             volatility: 'low',
@@ -326,18 +323,38 @@ Return ONLY valid JSON:
     };
 }
 
+// Python ML Backend Integration
+import { trackProductPrice, getProductHistory } from './db-tracker';
+
+// Python ML Backend Integration
+async function getMLPrediction(productName: string, currentPrice: number, productUrl: string) {
+    try {
+        const response = await fetch('http://localhost:8000/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                product_name: productName,
+                current_price: currentPrice,
+                product_url: productUrl
+            })
+        });
+
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) {
+        console.warn("ML Backend unavailable, falling back to basic analysis.");
+        return null;
+    }
+}
+
 export async function analyzeProductPrice(
     productName: string,
     currentPrice: string | number,
     productUrl: string,
     source: string
 ): Promise<PriceAnalysis> {
-    // 1. Parse Price Logic (Existing)
+    // 1. Parsing Logic
     let priceNum: number = 0;
-    // ... (Keep existing robust parsing logic from previous step, assuming it's above this function or re-inserted here if I'm replacing the whole file, but I am replacing specific chunks. 
-    // Since I am replacing the whole function analyzeProductPrice + getPricePrediction, I'll re-include the parsing logic briefly or ensure it's handled.)
-
-    // Quick re-implementation of the robust parser for this context to ensure it's not lost
     if (typeof currentPrice === 'number') {
         priceNum = Math.round(currentPrice);
     } else {
@@ -350,35 +367,116 @@ export async function analyzeProductPrice(
         }
     }
     if (isNaN(priceNum) || priceNum <= 0) priceNum = 50000;
-    if (priceNum < 100) priceNum *= 1000; // Hundred correction
 
-    // 2. Initial Fallback History
+    // --- DB TRACKING INTEGRATION ---
+    // Start tracking in background (fire and forget)
+    trackProductPrice({
+        title: productName,
+        url: productUrl,
+        current_price: priceNum,
+        source: source,
+        image_url: ""
+    }).catch(err => console.error("[DB Tracking Failed]", err));
+    // -------------------------------
+
+    // 2. Try to get REAL history for the chart
+    let realHistoryPoints: PriceHistoryPoint[] = [];
+    try {
+        const dbHistory = await getProductHistory(productUrl);
+        if (dbHistory && dbHistory.length > 0) {
+            console.log(`[Analysis] Found ${dbHistory.length} real history points!`);
+            realHistoryPoints = dbHistory.map((h: any) => ({
+                date: new Date(h.created_at).toISOString().split('T')[0],
+                price: parseFloat(h.price),
+                source: "Real Database"
+            }));
+        }
+    } catch (e) {
+        console.error("Failed to fetch real history", e);
+    }
+
+    // 3. ATTEMPT ML PREDICTION FIRST
+    const mlResult = await getMLPrediction(productName, priceNum, productUrl);
+
+    if (mlResult) {
+        console.log("[Price Analysis] Using Python ML Model Results");
+
+        // Transform ML result to our UI format
+        const futurePredictions = mlResult.forecast.map((f: any) => ({
+            date: f.date,
+            predictedPrice: f.predicted_price,
+            confidence: 85, // ML model confidence
+            event: null
+        }));
+
+        // DECIDE HISTORY SOURCE: Real or Mock?
+        let history = realHistoryPoints;
+        if (history.length < 2) {
+            history = generatePriceHistory(priceNum, productName);
+        }
+
+        const stats = analyzePastPrices(history).stats;
+
+        const prediction = {
+            expectedDrop: mlResult.trend === "Dropping",
+            dropPercentage: mlResult.trend === "Dropping" ? 5 : 0,
+            bestTimeToBuy: mlResult.recommendation,
+            predictedLowestPrice: Math.min(...futurePredictions.map((p: any) => p.predictedPrice)),
+            predictedHighestPrice: Math.max(...futurePredictions.map((p: any) => p.predictedPrice)),
+            confidence: 85,
+            recommendation: mlResult.trend === "Dropping" ? "WAIT" : "BUY NOW",
+            reasoning: `ML Model detection: Price trend is ${mlResult.trend}.`
+        };
+
+        return {
+            productName,
+            currentPrice: priceNum,
+            lowestPrice: stats.lowest,
+            highestPrice: stats.highest,
+            averagePrice: stats.average,
+            priceHistory: history,
+            futurePredictions,
+            prediction,
+            pastAnalysis: {
+                trend: mlResult.trend.toLowerCase() as any, // casting simple string match
+                volatility: 'medium',
+                seasonalPattern: "Analyzed via Prophet",
+                priceDropEvents: []
+            },
+            summary: `ML Analysis: The price is currently ${mlResult.trend.toLowerCase()}. We recommend: ${mlResult.recommendation}.`,
+            alerts: {
+                isAtLow: mlResult.trend === "Rising",
+                isAtHigh: mlResult.trend === "Dropping",
+                priceDropSoon: mlResult.trend === "Dropping",
+                upcomingSale: null
+            },
+            predictionSource: 'Python/Prophet'
+        };
+    }
+
+    // 3. Fallback to Generative AI if ML fails
     // We generate a base history first in case AI fails entirely
     let priceHistory = generatePriceHistory(priceNum, productName);
 
-    // 3. Get AI Analysis
-    // We pass basic stats derived from the fallback history as a starting point
+    // Get AI Analysis
     let stats = analyzePastPrices(priceHistory).stats;
-
     const aiResult = await getPricePrediction(productName, priceNum, stats);
 
-    // 4. If AI returned historical points, use them to rebuild the chart!
+    // If AI returned historical points, use them to rebuild the chart
     if (aiResult.historicalPoints && aiResult.historicalPoints.length > 0) {
         console.log(`[Price Analysis] Using AI-generated history (${aiResult.historicalPoints.length} points)`);
         const reconstructedHistory = interpolateHistory(aiResult.historicalPoints, 60);
         if (reconstructedHistory.length > 0) {
             priceHistory = reconstructedHistory;
-            // Re-calculate stats based on the new "real" history
             stats = analyzePastPrices(priceHistory).stats; // Update stats
         }
     }
 
-    // 5. Construct Final Object
+    // Construct Final Object
     const { prediction, futurePredictions, pastAnalysis, summary } = aiResult;
-
     const today = new Date();
     let upcomingSale: string | null = null;
-    if (today.getMonth() === 0) upcomingSale = "Republic Day Sale"; // approx
+    if (today.getMonth() === 0) upcomingSale = "Republic Day Sale";
 
     return {
         productName,
@@ -400,6 +498,7 @@ export async function analyzeProductPrice(
             isAtHigh: priceNum >= stats.highest * 0.95,
             priceDropSoon: prediction.expectedDrop,
             upcomingSale
-        }
+        },
+        predictionSource: 'Generative AI'
     };
 }
