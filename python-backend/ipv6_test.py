@@ -3,9 +3,12 @@ import sqlalchemy
 from sqlalchemy import create_engine, text
 import pandas as pd
 import sys
+import os
 
-# Try IPv6 Literal
-DATABASE_URL = "postgresql://postgres:Judebettlin%402004@[2406:da1c:f42:ae0b:35:48c1:5a99:b92f]:5432/postgres"
+# Load from Environment
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set")
 
 def check_conn():
     print("Testing IPv6 Connection...")

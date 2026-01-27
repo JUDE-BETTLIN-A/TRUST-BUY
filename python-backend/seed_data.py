@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 import random
 import os
 
-DATABASE_URL = "postgresql://neondb_owner:npg_5S6ecByVYRsu@ep-still-shadow-a1nctbbp-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set")
 engine = create_engine(DATABASE_URL)
 
 def seed_history():

@@ -7,8 +7,10 @@ from sqlalchemy import create_engine, text
 
 import os
 
-# Load from Environment or use default
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:Judebettlin%402004@db.xzudckofcdxqxjforlxw.supabase.co:5432/postgres")
+# Load from Environment
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set")
 engine = create_engine(DATABASE_URL)
 
 class PricePredictor:
