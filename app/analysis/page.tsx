@@ -37,7 +37,7 @@ function PriceHistoryChart({ data, label }: { data: { date: string; price: numbe
           />
           <Tooltip
             contentStyle={{ backgroundColor: '#1f2937', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px' }}
-            formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Price']}
+            formatter={(value) => [`₹${(value as number)?.toLocaleString() ?? '0'}`, 'Price']}
             labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
           />
           <Line
@@ -100,7 +100,7 @@ function FuturePredictionsChart({
           />
           <Tooltip
             contentStyle={{ backgroundColor: '#1f2937', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px' }}
-            formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Price']}
+            formatter={(value) => [`₹${(value as number)?.toLocaleString() ?? '0'}`, 'Price']}
           />
           <ReferenceLine x="Today" stroke="#4f46e5" strokeDasharray="3 3" />
           <Area

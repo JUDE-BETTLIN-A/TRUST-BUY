@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 import { getHistory, HistoryItem } from '@/lib/history';
+import { getHistoryFromDB } from '../history/actions';
 import { searchProductsAction } from '../search/actions';
 // import { searchProducts as searchProductsMock } from '@/lib/mock-scraper';
 import { getAlerts } from '../alerts/actions';
@@ -45,8 +46,23 @@ export default function HomePage() {
     window.addEventListener('trustbuy_profile_update', updateProfile);
 
     // Load last 3 history items (user-specific)
-    const h = getHistory(userId);
-    setHistory(h.slice(0, 3));
+    const loadHistory = async () => {
+      if (session?.user?.email) {
+        // Logged in: fetch from database
+        try {
+          const dbHistory = await getHistoryFromDB();
+          setHistory(dbHistory.slice(0, 3) as HistoryItem[]);
+        } catch (error) {
+          console.error("Failed to load history from DB:", error);
+          setHistory([]);
+        }
+      } else {
+        // Guest: use localStorage
+        const h = getHistory(userId);
+        setHistory(h.slice(0, 3));
+      }
+    };
+    loadHistory();
 
     // Fetch Dashboard Data if logged in
     if (session?.user) {
