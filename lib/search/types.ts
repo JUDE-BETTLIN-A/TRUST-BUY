@@ -7,7 +7,7 @@ export interface UnifiedSearchResult {
     rating: number;
     rating_count: number;
     seller?: string;
-    source: 'Amazon' | 'Flipkart' | 'Myntra' | 'Ajio' | 'Croma' | 'Reliance' | 'TataCliq' | 'Snapdeal' | 'ShopClues' | 'Unknown';
+    source: 'Amazon' | 'Flipkart' | 'Myntra' | 'Ajio' | 'Croma' | 'Reliance' | 'TataCliq' | 'Snapdeal' | 'ShopClues' | 'Gadgets360' | 'Indiamart' | 'Jiomart' | 'PaytmMall' | 'Meesho' | 'Unknown';
     product_url: string;
     trust_score?: number;
 }

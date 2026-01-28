@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Fix workspace root detection issue - use absolute path
+  turbopack: {
+    root: "C:\\Users\\judeb\\Downloads\\public",
+  },
   images: {
     dangerouslyAllowSVG: true,
     remotePatterns: [
@@ -37,6 +41,19 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.sdlcdn.com' },
       { protocol: 'https', hostname: 'cdn.shopclues.com' },
       { protocol: 'http', hostname: 'cdn.shopclues.com' },
+      // Indiamart image CDN
+      { protocol: 'https', hostname: '*.imimg.com' },
+      { protocol: 'http', hostname: '*.imimg.com' },
+      // Gadgets360 / NDTV
+      { protocol: 'https', hostname: '*.gadgets360.com' },
+      { protocol: 'https', hostname: 'i.gadgets360cdn.com' },
+      { protocol: 'https', hostname: 'drop.ndtv.com' },
+      // Jiomart
+      { protocol: 'https', hostname: '*.jiomart.com' },
+      { protocol: 'https', hostname: 'www.jiomart.com' },
+      // Meesho
+      { protocol: 'https', hostname: 'images.meesho.com' },
+      { protocol: 'https', hostname: '*.meesho.com' },
     ],
   },
 };

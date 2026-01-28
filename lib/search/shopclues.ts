@@ -1,18 +1,13 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { UnifiedSearchResult } from './types';
+import { fetchWithProxy } from './proxy';
 
 export async function searchShopClues(query: string): Promise<UnifiedSearchResult[]> {
     const results: UnifiedSearchResult[] = [];
     const url = `https://www.shopclues.com/search?q=${encodeURIComponent(query)}&sc_z=222&z=0&count=10`;
 
     try {
-        const { data } = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            timeout: 5000
-        });
+        const data = await fetchWithProxy({ url, timeout: 10000 });
 
         const $ = cheerio.load(data);
 

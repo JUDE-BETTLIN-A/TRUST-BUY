@@ -11,6 +11,12 @@ export function TopNavbar() {
     const pathname = usePathname();
     const { data: session } = useSession();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Prevent hydration mismatch by only rendering after mount
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Detect stale "Guest User" session from old logic and force cleanup
     const isStaleGuest = session?.user?.name === "Guest User";
@@ -19,8 +25,8 @@ export function TopNavbar() {
     const userId = session?.user?.email || session?.user?.id;
 
     /* Real-time Profile Updates */
-    const [userAvatar, setUserAvatar] = useState(session?.user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest");
-    const [displayName, setDisplayName] = useState(session?.user?.name || "User");
+    const [userAvatar, setUserAvatar] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Guest");
+    const [displayName, setDisplayName] = useState("User");
 
     useEffect(() => {
         if (isStaleGuest) {
@@ -61,6 +67,11 @@ export function TopNavbar() {
     }, [session, userId]);
 
     // Don't show navbar on landing page or auth pages
+    // Return null only after mounted to prevent hydration mismatch
+    if (!mounted) {
+        return null;
+    }
+
     if (pathname === "/" || pathname?.startsWith("/auth")) {
         return null;
     }

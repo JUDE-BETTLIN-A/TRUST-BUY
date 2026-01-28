@@ -1,6 +1,6 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { UnifiedSearchResult } from './types';
+import { fetchWithProxy, isProxyConfigured } from './proxy';
 
 // Myntra uses client-side rendering with window.__myx data
 export async function searchMyntra(query: string): Promise<UnifiedSearchResult[]> {
@@ -8,16 +8,15 @@ export async function searchMyntra(query: string): Promise<UnifiedSearchResult[]
     const url = `https://www.myntra.com/${encodeURIComponent(query)}`;
 
     try {
-        const { data } = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                // Cookie helps sometimes
-            },
-            timeout: 5000
+        // Myntra requires JS rendering, use proxy with render option
+        const data = await fetchWithProxy({ 
+            url, 
+            timeout: 15000, 
+            renderJs: isProxyConfigured() // Only render JS if proxy available
         });
 
         // Try extracting JSON data from script
-        const match = data.match(/window\.__myx\s*=\s*({[\s\S]+?});/);
+        const match = data.match(/window\\.__myx\\s*=\\s*({[\\s\\S]+?});/);
         if (match && match[1]) {
             try {
                 const json = JSON.parse(match[1]);
@@ -41,8 +40,32 @@ export async function searchMyntra(query: string): Promise<UnifiedSearchResult[]
             } catch (jsonErr) {
                 // Parsing failed
             }
-        } else {
-            // Fallback to Cheerio if classes exist (unlikely on myntra SSR but possible)
+        }
+
+        // Alternative: Try to find product data in HTML
+        if (results.length === 0) {
+            const $ = cheerio.load(data);
+            $('.product-base').each((_, el) => {
+                try {
+                    const title = $(el).find('.product-brand, .product-product').text().trim();
+                    const priceText = $(el).find('.product-discountedPrice, .product-price').text().replace(/[^0-9]/g, '');
+                    const image = $(el).find('img').attr('src') || '';
+                    const link = $(el).find('a').attr('href') || '';
+
+                    if (title && priceText) {
+                        results.push({
+                            title,
+                            price: parseInt(priceText),
+                            image,
+                            rating: 0,
+                            rating_count: 0,
+                            seller: 'Myntra',
+                            source: 'Myntra',
+                            product_url: link.startsWith('http') ? link : `https://www.myntra.com${link}`
+                        });
+                    }
+                } catch (e) { /* skip */ }
+            });
         }
 
     } catch (e) {
