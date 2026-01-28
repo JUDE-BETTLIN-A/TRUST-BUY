@@ -20,9 +20,9 @@ interface OfferStory {
 const STORIES_DATA: OfferStory[] = [
     {
         id: 1,
-        title: "Great Republic Day Sale",
-        description: "Unbeatable deals on smartphones, laptops, and more. 10% instant discount with SBI cards.",
-        date: "Starts Jan 14",
+        title: "Budget 2026 Bonanza Sale",
+        description: "Massive discounts on electronics ahead of the Union Budget. 10% instant discount with SBI cards.",
+        date: "Feb 1 - 5",
         image: "https://images.unsplash.com/photo-1556742111-a301076d9d18?auto=format&fit=crop&q=80&w=800",
         color: "bg-blue-600",
         storeName: "Amazon.in",
@@ -31,20 +31,20 @@ const STORIES_DATA: OfferStory[] = [
     },
     {
         id: 2,
-        title: "Big Saving Days",
-        description: "The biggest sale on electronics, fashion, and home essentials. Early access for Plus members.",
-        date: "Jan 15 - 20",
+        title: "Valentine's Week Sale",
+        description: "Gift your loved ones with the best deals on fashion, gadgets, and more. Early access for Plus members.",
+        date: "Feb 7 - 14",
         image: "https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&q=80&w=800",
-        color: "bg-blue-500",
+        color: "bg-pink-500",
         storeName: "Flipkart",
         price: "Min 50% Off",
         viewed: false
     },
     {
         id: 3,
-        title: "Constitution of Tech Sale",
-        description: "Celebrate democracy with democratic prices on premium gadgets.",
-        date: "Jan 26 Special",
+        title: "Winter Clearance Sale",
+        description: "Last chance to grab winter essentials at unbeatable prices before spring arrives.",
+        date: "Jan 29 - Feb 5",
         image: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&q=80&w=800",
         color: "bg-teal-600",
         storeName: "Croma",
@@ -53,13 +53,13 @@ const STORIES_DATA: OfferStory[] = [
     },
     {
         id: 4,
-        title: "Digital India Sale",
-        description: "Widest range of electronics at the best prices. Experience the latest tech.",
-        date: "Jan 22 - 26",
+        title: "New Year New Gadgets",
+        description: "Start 2026 right with the latest tech at the best prices. Experience premium gadgets.",
+        date: "Ends Jan 31",
         image: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?auto=format&fit=crop&q=80&w=800",
         color: "bg-red-600",
         storeName: "Reliance Digital",
-        price: "iPhone 15 @ ₹65,999",
+        price: "iPhone 16 @ ₹72,999",
         viewed: false
     },
     {
@@ -68,7 +68,7 @@ const STORIES_DATA: OfferStory[] = [
         description: "Premium brands, premium savings. Grab your favorites before they are gone.",
         date: "Ending Soon",
         image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800",
-        color: "bg-pink-600",
+        color: "bg-purple-600",
         storeName: "Tata Cliq",
         price: "Up to 80% Off",
         viewed: false

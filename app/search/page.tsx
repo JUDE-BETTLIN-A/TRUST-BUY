@@ -162,36 +162,195 @@ function SearchPageContent() {
 
       if (filters.features.length > 0) {
         const hasAllFeatures = filters.features.every(fid => {
-          // Smart mapping for common IDs
-          if (fid === '5g') return combinedText.includes('5g');
-          if (fid === 'ram8') return combinedText.match(/([8-9]|\d{2})\s?gb/); // 8GB or more
-          if (fid === '16gb') return combinedText.match(/(1[6-9]|[2-9]\d)\s?gb/); // 16GB or more
-          if (fid === 'storage256') return combinedText.match(/(256|512|1\s?tb)/);
-          if (fid === 'ssd') return combinedText.includes('ssd');
-          if (fid === 'touch') return combinedText.includes('touch');
-          if (fid === 'amoled') return combinedText.includes('amoled') || combinedText.includes('oled');
-          if (fid === '4k') return combinedText.includes('4k') || combinedText.includes('uhd');
-          if (fid === 'wireless') return combinedText.includes('wireless') || combinedText.includes('bluetooth');
-          // Default: loosen match (check if label part is in text?) 
-          // Since we only have ID, we rely on the ID being descriptive or simple
+          // Smart mapping for common feature IDs across all categories
+          const featureKeywords: Record<string, string[]> = {
+            // Mobile features
+            '5g': ['5g'],
+            'ram8': ['8gb', '8 gb', '12gb', '16gb'],
+            'storage256': ['256gb', '512gb', '1tb'],
+            'amoled': ['amoled', 'oled', 'super amoled'],
+            '120hz': ['120hz', '144hz', '90hz'],
+            'fastcharge': ['fast charg', '65w', '67w', '120w', 'supervooc', 'dash', 'warp'],
+            
+            // Laptop features
+            'touch': ['touch', 'touchscreen'],
+            'ssd': ['ssd', 'nvme', 'm.2'],
+            'backlit': ['backlit', 'rgb', 'illuminated'],
+            '16gb': ['16gb', '32gb', '64gb'],
+            'gpu': ['rtx', 'gtx', 'nvidia', 'radeon', 'graphics card', 'dedicated'],
+            'light': ['lightweight', 'ultrabook', '1.5kg', '1.2kg', 'thin'],
+            
+            // Audio features
+            'anc': ['anc', 'noise cancell', 'active noise'],
+            'wireless': ['wireless', 'bluetooth', 'truly wireless', 'tws'],
+            'mic': ['microphone', 'mic', 'call'],
+            'water': ['water resistant', 'waterproof', 'ipx', 'ip67', 'ip68'],
+            'bass': ['bass', 'subwoofer', 'extra bass'],
+            'longbattery': ['battery life', 'hours', 'long battery'],
+            
+            // Kitchen/Oven features  
+            'convection': ['convection'],
+            'grill': ['grill'],
+            'autocook': ['auto cook', 'auto-cook', 'preset', 'menu'],
+            'timer': ['timer'],
+            'digital': ['digital display', 'digital control', 'led display'],
+            'stainless': ['stainless steel', 'steel body'],
+            
+            // TV features
+            '4k': ['4k', 'uhd', 'ultra hd', '2160p'],
+            'smart': ['smart tv', 'android tv', 'webos', 'tizen', 'fire tv'],
+            'oled': ['oled', 'qled', 'neo qled'],
+            'hdr': ['hdr', 'hdr10', 'dolby vision'],
+            'dolby': ['dolby', 'atmos', 'surround'],
+            'voice': ['voice control', 'alexa', 'google assistant'],
+            
+            // Fashion features
+            'cotton': ['cotton', '100% cotton'],
+            'polyester': ['polyester', 'poly blend'],
+            'silk': ['silk', 'satin'],
+            'denim': ['denim', 'jeans'],
+            'leather': ['leather', 'genuine leather', 'pu leather'],
+            'organic': ['organic', 'eco-friendly', 'sustainable'],
+            
+            // Shoe features
+            'running': ['running', 'jogging', 'athletic'],
+            'casual': ['casual', 'everyday'],
+            'canvas': ['canvas'],
+            'waterproof': ['waterproof', 'water resistant'],
+            'memory': ['memory foam', 'cushion'],
+            
+            // Watch features
+            'fitness': ['fitness', 'health', 'heart rate', 'spo2'],
+            'gps': ['gps', 'built-in gps'],
+            'calling': ['bluetooth call', 'make calls', 'calling'],
+            
+            // Appliance features
+            'inverter': ['inverter', 'dual inverter'],
+            'energysave': ['energy sav', '5 star', 'bee rating'],
+            'frost': ['frost free', 'no frost'],
+            'convertible': ['convertible', '5-in-1', '4-in-1'],
+            'wifi': ['wifi', 'wi-fi', 'app control', 'smart connect'],
+            'star5': ['5 star', '5-star'],
+            
+            // Camera features
+            'mirrorless': ['mirrorless'],
+            'dslr': ['dslr'],
+            '4kvideo': ['4k video', '4k recording'],
+            'stabilize': ['stabiliz', 'ois', 'ibis'],
+            'touchscreen': ['touchscreen', 'touch screen'],
+            
+            // Beauty features
+            'vegan': ['vegan', 'cruelty-free'],
+            'spf': ['spf', 'sun protect'],
+            'sulfatefree': ['sulfate-free', 'sulfate free', 'paraben free'],
+            'derma': ['dermatologist', 'clinically tested'],
+            
+            // Furniture features
+            'wood': ['solid wood', 'sheesham', 'teak', 'mango wood'],
+            'engineered': ['engineered wood', 'particle board', 'mdf'],
+            'metal': ['metal frame', 'steel frame', 'iron'],
+            'storage': ['storage', 'drawer', 'shelf'],
+            'foldable': ['foldable', 'folding', 'collapsible'],
+            
+            // Bags features
+            'usb': ['usb', 'charging port'],
+            'antitheft': ['anti-theft', 'anti theft', 'hidden zipper'],
+            'laptop': ['laptop compartment', 'laptop sleeve', '15.6', '14 inch'],
+            'wheels': ['wheel', 'trolley', 'roller'],
+          };
+          
+          const keywords = featureKeywords[fid];
+          if (keywords) {
+            return keywords.some(kw => combinedText.includes(kw));
+          }
+          // Default: check if feature ID itself is in text
           return combinedText.includes(fid);
         });
         if (!hasAllFeatures) return false;
       }
 
       if (filters.useCase) {
-        // Map Use Case ID to keywords
+        // Map Use Case ID to keywords for all categories
         const uc = filters.useCase;
-        const keywords: Record<string, string[]> = {
-          'gaming': ['gaming', 'game', 'rtx', 'gtx', 'graphics', 'ps5', 'xbox', 'nintendo'],
-          'student': ['student', 'chromebook', 'office', 'light'],
-          'camera': ['camera', 'pixel', 'mp', 'sony'],
-          'gym': ['sport', 'fit', 'run', 'sweat', 'water'],
-          'running': ['run', 'jog', 'sport'],
+        const useCaseKeywords: Record<string, string[]> = {
+          // Mobile/General
+          'gaming': ['gaming', 'game', 'rtx', 'gtx', 'graphics', 'ps5', 'xbox', 'nintendo', 'fps'],
+          'camera': ['camera', 'mp', 'megapixel', 'photography', 'sensor'],
+          'battery': ['battery', 'mah', 'long lasting', 'endurance'],
+          'value': ['value', 'budget', 'affordable', 'best buy'],
+          'selfie': ['selfie', 'front camera', 'vlog'],
+          'premium': ['premium', 'flagship', 'pro', 'ultra', 'max'],
+          
+          // Laptop
+          'student': ['student', 'chromebook', 'office', 'light', 'budget'],
+          'coding': ['programming', 'developer', 'coding', 'linux'],
+          'business': ['business', 'enterprise', 'thinkpad', 'latitude'],
+          'creative': ['video edit', 'photo edit', 'creator', 'content'],
+          
+          // Audio
+          'gym': ['sport', 'fit', 'run', 'sweat', 'water', 'gym', 'workout'],
+          'commute': ['commute', 'travel', 'portable', 'compact'],
+          'calls': ['calls', 'meeting', 'conference', 'work from home'],
+          'audiophile': ['hi-fi', 'lossless', 'studio', 'professional'],
+          
+          // Fashion
+          'casual': ['casual', 'everyday', 'daily wear', 'comfort'],
+          'formal': ['formal', 'office', 'business', 'meeting'],
+          'party': ['party', 'occasion', 'festive', 'wedding'],
+          'sports': ['sports', 'athletic', 'active', 'gym'],
+          'ethnic': ['ethnic', 'traditional', 'indian', 'kurta', 'saree'],
+          'winter': ['winter', 'warm', 'thermal', 'jacket', 'sweater'],
+          
+          // Kitchen
+          'baking': ['baking', 'cake', 'bread', 'pastry'],
+          'reheating': ['reheat', 'warm', 'defrost'],
+          'grilling': ['grill', 'bbq', 'tandoor'],
+          'family': ['large', 'family', 'capacity', 'litre'],
+          'solo': ['solo', 'compact', 'small', 'mini'],
+          
+          // TV
+          'movies': ['movie', 'cinema', 'theatre', 'film'],
+          'bedroom': ['bedroom', 'small room', '32 inch', '43 inch'],
+          'living': ['living room', 'large', '55 inch', '65 inch'],
+          
+          // Watch
+          'fitness': ['fitness', 'health', 'workout', 'sports'],
+          'daily': ['daily', 'everyday', 'casual'],
+          'luxury': ['luxury', 'premium', 'gold', 'silver'],
+          'outdoor': ['outdoor', 'adventure', 'rugged', 'military'],
+          
+          // Appliance
+          'couple': ['couple', 'small family', '2-3 persons'],
+          'bachelor': ['bachelor', 'single', 'mini', 'compact'],
+          'energy': ['energy saving', 'low power', 'efficient'],
+          
+          // Camera
+          'beginner': ['beginner', 'entry level', 'starter'],
+          'professional': ['professional', 'pro', 'advanced'],
+          'vlogging': ['vlog', 'youtube', 'content creator'],
+          'camera_travel': ['travel', 'compact', 'portable'],
+          'wildlife': ['wildlife', 'zoom', 'telephoto'],
+          
+          // Beauty
+          'dryskin': ['dry skin', 'moistur', 'hydrat'],
+          'oilyskin': ['oily skin', 'oil control', 'matte'],
+          'sensitive': ['sensitive', 'gentle', 'hypoallergenic'],
+          'antiaging': ['anti-aging', 'anti aging', 'wrinkle', 'fine lines'],
+          'haircare': ['hair', 'shampoo', 'conditioner', 'scalp'],
+          
+          // Furniture
+          'kids': ['kids', 'children', 'child'],
+          'furniture_office': ['office', 'work', 'desk', 'ergonomic'],
+          
+          // Bags
+          'bags_travel': ['travel', 'luggage', 'trip'],
+          'bags_college': ['college', 'school', 'student'],
+          'bags_hiking': ['hiking', 'trek', 'outdoor', 'adventure'],
         };
 
-        if (keywords[uc]) {
-          if (!keywords[uc].some(k => combinedText.includes(k))) return false;
+        const keywords = useCaseKeywords[uc];
+        if (keywords) {
+          if (!keywords.some(k => combinedText.includes(k))) return false;
         } else {
           if (!combinedText.includes(uc)) return false;
         }

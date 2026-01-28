@@ -3,80 +3,195 @@ import * as cheerio from 'cheerio';
 import { UnifiedSearchResult } from './types';
 import { fetchWithProxy, isProxyConfigured } from './proxy';
 
+/**
+ * Flipkart Scraper - Uses techniques similar to Telegram deal bots
+ * 
+ * Key techniques:
+ * 1. Firefox User-Agent (more reliable than Chrome)
+ * 2. Target elements with data-id attribute (stable across layout changes)
+ * 3. Multiple fallback selectors for different page layouts
+ */
+
+// Headers that mimic Firefox browser - same as used by flipkart-scraper library
+const FLIPKART_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Cache-Control': 'max-age=0',
+};
+
 export async function searchFlipkart(query: string): Promise<UnifiedSearchResult[]> {
-    const url = `https://www.flipkart.com/search?q=${encodeURIComponent(query)}`;
+    // Build URL with marketplace parameter (same as flipkart-scraper library)
+    const url = `https://www.flipkart.com/search?q=${encodeURIComponent(query)}&marketplace=FLIPKART`;
     const results: UnifiedSearchResult[] = [];
 
     try {
+        console.log(`[Flipkart] Searching: ${query}`);
+        
         // Try with proxy if configured
         let data: string;
         
         if (isProxyConfigured()) {
             data = await fetchWithProxy({ url, timeout: 15000, renderJs: true });
         } else {
-            // Direct fetch often fails (529 error) - try anyway
+            // Direct fetch with Firefox headers
             const response = await axios.get(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-IN,en;q=0.9',
-                    'Cache-Control': 'no-cache',
-                    'Referer': 'https://www.flipkart.com/'
-                },
-                timeout: 10000
+                headers: FLIPKART_HEADERS,
+                timeout: 15000,
+                // Important: Accept compressed responses
+                decompress: true,
             });
             data = response.data;
         }
 
+        // Check for bot detection or retry error
+        if (data.includes('Are you a human?') || data.includes('Retry in ')) {
+            console.warn('[Flipkart] Bot detection triggered, falling back to DuckDuckGo');
+            return searchFlipkartViaDuckDuckGo(query);
+        }
+
         const $ = cheerio.load(data);
 
-        // Flipkart Grid Class (standard)
-        // Try multiple container selectors as Flipkart changes classes weekly
-        $('div._1AtVbE, div[data-id], div._13oc-S, div.tUxRFH').each((_, el) => {
+        // METHOD 1: Target elements with data-id attribute (most reliable - used by Telegram bots)
+        // This is the key technique from flipkart-scraper library
+        $('div[data-id]').each((_, el) => {
             try {
-                // Title: Try multiple known classes from 2023-2024 layouts
-                const title = $(el).find('div.KzDlHZ, a.wjcEIp, a.s1Q9rs, div._4rR01T, .IRpwTa').first().text().trim();
+                const $product = $(el);
+                
+                // Get product link
+                const $link = $product.find('a').first();
+                let productLink = $link.attr('href') || '';
+                if (productLink.startsWith('/')) {
+                    productLink = `https://www.flipkart.com${productLink}`;
+                }
 
-                // Price
-                const priceText = $(el).find('div.Nx9bqj, div._30jeq3, div._25b18c ._30jeq3').first().text().replace(/[^0-9]/g, '');
+                // Get thumbnail - look for img inside the link
+                const thumbnail = $product.find('img').first().attr('src') || '';
 
-                // MRP
-                const mrpText = $(el).find('div.yRaY8j, div._3I9_wc').first().text().replace(/[^0-9]/g, '');
+                // Get product name - multiple strategies
+                // Strategy 1: Look for title attribute on link
+                let title = $link.attr('title') || '';
+                
+                // Strategy 2: Find the name section (last child of first link, then select by class)
+                if (!title) {
+                    const $nameSection = $link.children().last();
+                    if ($nameSection.length) {
+                        const classes = $nameSection.attr('class');
+                        if (classes) {
+                            const $nameElem = $product.find(`.${classes.split(' ').join('.')}`).first();
+                            const text = $nameElem.text().trim();
+                            // Skip "Sponsored" text
+                            if (text && text !== 'Sponsored') {
+                                title = text;
+                            }
+                        }
+                    }
+                }
+                
+                // Strategy 3: Common class patterns
+                if (!title) {
+                    title = $product.find('div.KzDlHZ, a.wjcEIp, a.s1Q9rs, div._4rR01T, .IRpwTa').first().text().trim();
+                }
 
-                // Image
-                const image = $(el).find('img').attr('src') || '';
+                // Extract prices - look for ₹ symbol
+                let currentPrice: number | null = null;
+                let originalPrice: number | null = null;
 
-                // Link
-                const linkSuffix = $(el).find('a').attr('href');
+                $product.find('div').each((_, div) => {
+                    const text = $(div).text().trim();
+                    if (text.startsWith('₹') && !text.includes('₹', 1)) {
+                        // Clean price text
+                        const priceText = text.replace('₹', '').replace(/,/g, '').trim();
+                        const price = parseInt(priceText);
+                        if (!isNaN(price)) {
+                            if (currentPrice === null) {
+                                currentPrice = price;
+                            } else if (originalPrice === null) {
+                                originalPrice = price;
+                            }
+                        }
+                    }
+                });
 
-                // Rating
-                const ratingText = $(el).find('div.XQDdHH, div._3LWZlK').first().text();
+                // Get rating if available
+                const ratingText = $product.find('div.XQDdHH, div._3LWZlK').first().text().trim();
+                const rating = parseFloat(ratingText) || 0;
 
-                if (title && priceText) {
-                    const price = parseInt(priceText);
-                    const mrp = mrpText ? parseInt(mrpText) : price;
-                    const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+                if (title && currentPrice && currentPrice > 0) {
+                    const mrp = originalPrice || currentPrice;
+                    const discount = mrp > currentPrice ? Math.round(((mrp - currentPrice) / mrp) * 100) : 0;
 
                     results.push({
                         title,
-                        price,
+                        price: currentPrice,
                         mrp,
                         discount,
-                        image: image || "",
-                        rating: parseFloat(ratingText) || 0,
-                        rating_count: 0, // Hard to extract reliably from grid
-                        seller: 'Flipkart Seller',
+                        image: thumbnail,
+                        rating,
+                        rating_count: 0,
+                        seller: 'Flipkart',
                         source: 'Flipkart',
-                        product_url: linkSuffix ? `https://www.flipkart.com${linkSuffix}` : url
+                        product_url: productLink
                     });
                 }
-            } catch (inner) {
-                // continue
+            } catch (err) {
+                // Continue to next product
             }
         });
 
-        // If direct scrape failed, try DuckDuckGo fallback
+        console.log(`[Flipkart] Found ${results.length} products via data-id method`);
+
+        // METHOD 2: Fallback to common container classes if data-id method failed
         if (results.length === 0) {
+            console.log('[Flipkart] data-id method returned 0 results, trying fallback selectors...');
+            
+            $('div._1AtVbE, div._13oc-S, div.tUxRFH, div.cPHDOP').each((_, el) => {
+                try {
+                    const $el = $(el);
+                    
+                    const title = $el.find('div.KzDlHZ, a.wjcEIp, a.s1Q9rs, div._4rR01T, .IRpwTa').first().text().trim();
+                    const priceText = $el.find('div.Nx9bqj, div._30jeq3').first().text().replace(/[^0-9]/g, '');
+                    const mrpText = $el.find('div.yRaY8j, div._3I9_wc').first().text().replace(/[^0-9]/g, '');
+                    const image = $el.find('img').attr('src') || '';
+                    const linkSuffix = $el.find('a').attr('href');
+                    const ratingText = $el.find('div.XQDdHH, div._3LWZlK').first().text();
+
+                    if (title && priceText) {
+                        const price = parseInt(priceText);
+                        const mrp = mrpText ? parseInt(mrpText) : price;
+                        const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+
+                        results.push({
+                            title,
+                            price,
+                            mrp,
+                            discount,
+                            image: image || "",
+                            rating: parseFloat(ratingText) || 0,
+                            rating_count: 0,
+                            seller: 'Flipkart',
+                            source: 'Flipkart',
+                            product_url: linkSuffix ? `https://www.flipkart.com${linkSuffix}` : url
+                        });
+                    }
+                } catch (inner) {
+                    // continue
+                }
+            });
+            
+            console.log(`[Flipkart] Found ${results.length} products via fallback selectors`);
+        }
+
+        // If still no results, try DuckDuckGo fallback
+        if (results.length === 0) {
+            console.log('[Flipkart] No results from direct scraping, trying DuckDuckGo fallback...');
             return searchFlipkartViaDuckDuckGo(query);
         }
 
@@ -85,6 +200,7 @@ export async function searchFlipkart(query: string): Promise<UnifiedSearchResult
         // Try DuckDuckGo fallback on error
         return searchFlipkartViaDuckDuckGo(query);
     }
+    
     return results;
 }
 

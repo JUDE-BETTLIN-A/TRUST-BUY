@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/layout/navbar";
 import { TopNavbar } from "@/components/TopNavbar";
 import { SessionProvider } from "@/components/providers";
+import { AlertManager } from "@/components/AlertManager";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,6 +54,7 @@ export default function RootLayout({
             <TopNavbar />
             <div className="flex-1 overflow-auto">
               {children}
+              <AlertManager />
             </div>
           </div>
         </SessionProvider>

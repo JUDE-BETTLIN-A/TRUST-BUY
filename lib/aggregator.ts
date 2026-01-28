@@ -36,8 +36,8 @@ function calculateSimilarity(title1: string, title2: string): number {
     const t1 = tokenize(title1);
     const t2 = tokenize(title2);
 
-    // Check for critical variant mismatch
-    const variantKeywords = ['128gb', '256gb', '512gb', '1tb', '8gb', '16gb', '32gb', 'pro', 'max', 'plus', 'ultra', 'mini', 'slim', 'digital', 'disc', 'oled', 'lite'];
+    // Check for critical variant mismatch (storage, RAM, model variants)
+    const variantKeywords = ['128gb', '256gb', '512gb', '1tb', '4gb', '6gb', '8gb', '12gb', '16gb', '32gb', 'pro', 'max', 'plus', 'ultra', 'mini', 'slim', 'digital', 'disc', 'oled', 'lite', 'se', 'air', 'neo', 'fe', '5g', '4g'];
     for (const kw of variantKeywords) {
         if (t1.has(kw) !== t2.has(kw)) {
             return 0; // Immediate mismatch if variants differ
@@ -51,6 +51,17 @@ function calculateSimilarity(title1: string, title2: string): number {
     return intersection.size / union.size;
 }
 
+// Check if two products are essentially the same (very strict matching)
+function isExactSameProduct(title1: string, title2: string): boolean {
+    // Normalize titles
+    const norm1 = title1.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const norm2 = title2.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    
+    // Only merge if titles are nearly identical (95%+ overlap)
+    const similarity = calculateSimilarity(title1, title2);
+    return similarity > 0.90; // Very strict - only merge almost identical products
+}
+
 export function aggregateProducts(products: Product[]): Product[] {
     // Filter out invalid products
     products = products.filter(p => p && p.title);
@@ -58,24 +69,23 @@ export function aggregateProducts(products: Product[]): Product[] {
     const aggregated: Product[] = [];
     const groupedMap = new Map<string, Product[]>();
 
-    // 1. Group similar products
+    // 1. Group ONLY truly identical products (same product from different sellers)
     for (const product of products) {
         let matchFound = false;
 
-        // Try to match with existing groups
+        // Try to match with existing groups - VERY STRICT matching only
         for (const [key, group] of groupedMap.entries()) {
             const representative = group[0];
-            const similarity = calculateSimilarity(representative.title, product.title);
-
-            // High similarity threshold
-            if (similarity > 0.65) {
+            
+            // Only group if products are essentially identical
+            if (isExactSameProduct(representative.title, product.title)) {
                 group.push(product);
                 matchFound = true;
                 break;
             }
         }
 
-        // If no match, start a new group
+        // If no match, start a new group (this will be the common case now)
         if (!matchFound) {
             groupedMap.set(product.id, [product]);
         }

@@ -7,7 +7,7 @@ export interface UnifiedSearchResult {
     rating: number;
     rating_count: number;
     seller?: string;
-    source: 'Amazon' | 'Flipkart' | 'Myntra' | 'Ajio' | 'Croma' | 'Reliance' | 'TataCliq' | 'Snapdeal' | 'ShopClues' | 'Gadgets360' | 'Indiamart' | 'Jiomart' | 'PaytmMall' | 'Meesho' | 'Unknown';
+    source: 'Amazon' | 'Flipkart' | 'Myntra' | 'Ajio' | 'Croma' | 'Reliance' | 'TataCliq' | 'Snapdeal' | 'ShopClues' | 'Gadgets360' | 'Indiamart' | 'Jiomart' | 'PaytmMall' | 'Meesho' | 'PriceDekho' | 'MySmartPrice' | '91Mobiles' | 'Smartprix' | 'PriceHunt' | 'BingShopping' | 'DuckDuckGo' | 'Unknown';
     product_url: string;
     trust_score?: number;
 }

@@ -1,10 +1,10 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { UnifiedSearchResult } from './types';
-import { getMeeshoFromBingShopping } from './bing-shop-fallback';
+import { getJioMartFromBingShopping } from './bing-shop-fallback';
 
 /**
- * Meesho Scraper - Using Telegram bot techniques
+ * JioMart Scraper - Using Telegram bot techniques
  * 
  * Same approach as Flipkart:
  * 1. Firefox headers with Sec-Fetch headers
@@ -12,7 +12,7 @@ import { getMeeshoFromBingShopping } from './bing-shop-fallback';
  * 3. DuckDuckGo fallback
  */
 
-const MEESHO_HEADERS = {
+const JIOMART_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.5',
@@ -26,109 +26,89 @@ const MEESHO_HEADERS = {
     'Cache-Control': 'max-age=0',
 };
 
-export async function searchMeesho(query: string): Promise<UnifiedSearchResult[]> {
+export async function searchJioMart(query: string): Promise<UnifiedSearchResult[]> {
     const results: UnifiedSearchResult[] = [];
-    const searchUrl = `https://www.meesho.com/search?q=${encodeURIComponent(query)}`;
+    const searchUrl = `https://www.jiomart.com/search/${encodeURIComponent(query)}`;
     
     try {
-        console.log(`[Meesho] Searching: ${query}`);
+        console.log(`[JioMart] Searching: ${query}`);
         
         const { data: html } = await axios.get(searchUrl, {
-            headers: MEESHO_HEADERS,
+            headers: JIOMART_HEADERS,
             timeout: 15000,
             decompress: true,
         });
 
         // Check for bot detection - use BingShopping fallback
         if (html.includes('blocked') || html.includes('captcha') || html.includes('Access Denied')) {
-            console.log('[Meesho] Bot detected, trying BingShopping fallback');
-            return getMeeshoFromBingShopping(query);
+            console.log('[JioMart] Bot detected, trying BingShopping fallback');
+            return getJioMartFromBingShopping(query);
         }
 
         const $ = cheerio.load(html);
 
-        // METHOD 1: Try __NEXT_DATA__ JSON first (Meesho uses Next.js)
+        // METHOD 1: Try __NEXT_DATA__ JSON first (JioMart uses Next.js)
         const scriptContent = $('script#__NEXT_DATA__').text();
         if (scriptContent) {
             try {
                 const nextData = JSON.parse(scriptContent);
+                const products = nextData?.props?.pageProps?.data?.products || 
+                               nextData?.props?.pageProps?.products ||
+                               nextData?.props?.pageProps?.initialData?.products || [];
                 
-                // Try multiple paths for catalogs/products
-                const catalogs = nextData?.props?.pageProps?.initialData?.catalogs ||
-                               nextData?.props?.pageProps?.catalogList ||
-                               nextData?.props?.pageProps?.data?.catalogs ||
-                               nextData?.props?.pageProps?.products || [];
-                
-                catalogs.forEach((p: any) => {
-                    const price = parseFloat(p.min_catalog_price || p.price || p.selling_price || 0);
-                    const mrp = parseFloat(p.min_product_mrp || p.mrp || p.original_price || price);
-                    const name = p.name || p.product_name || '';
+                products.forEach((p: any) => {
+                    const price = parseFloat(p.selling_price || p.sellingPrice || p.price || 0);
+                    const mrp = parseFloat(p.mrp || p.maximumRetailPrice || price);
+                    const name = p.product_name || p.productName || p.name || '';
                     
                     if (name && price > 0) {
-                        // Build image URL
-                        let image = '';
-                        if (p.product_images && p.product_images.length > 0) {
-                            image = p.product_images[0]?.url || p.product_images[0] || '';
-                        } else if (p.image) {
-                            image = p.image;
-                        }
-                        
-                        // Build product URL
-                        let productUrl = searchUrl;
-                        if (p.slug && (p.product_id || p.catalog_id)) {
-                            productUrl = `https://www.meesho.com/${p.slug}/p/${p.product_id || p.catalog_id}`;
-                        } else if (p.url) {
-                            productUrl = p.url.startsWith('http') ? p.url : `https://www.meesho.com${p.url}`;
-                        }
-                        
                         results.push({
                             title: name,
                             price,
                             mrp,
                             discount: mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0,
-                            image,
-                            rating: parseFloat(p.average_rating || p.rating) || 0,
-                            rating_count: parseInt(p.review_count || p.reviews) || 0,
-                            seller: p.supplier_name || 'Meesho Seller',
-                            source: 'Meesho',
-                            product_url: productUrl
+                            image: p.product_image || p.productImage || p.image || '',
+                            rating: parseFloat(p.rating || p.average_rating) || 0,
+                            rating_count: parseInt(p.rating_count || p.reviews) || 0,
+                            seller: 'JioMart',
+                            source: 'Jiomart',
+                            product_url: p.pdp_link ? `https://www.jiomart.com${p.pdp_link}` : 
+                                        p.url ? `https://www.jiomart.com${p.url}` : searchUrl
                         });
                     }
                 });
                 
                 if (results.length > 0) {
-                    console.log(`[Meesho] Found ${results.length} products from __NEXT_DATA__`);
+                    console.log(`[JioMart] Found ${results.length} products from __NEXT_DATA__`);
                     return results;
                 }
-            } catch (e) { 
-                console.log('[Meesho] __NEXT_DATA__ parse failed');
-            }
+            } catch (e) { /* JSON parse failed */ }
         }
 
         // METHOD 2: Target product cards with data attributes
-        $('[data-testid*="product"], [data-catalog-id], .ProductCard, .product-card').each((_, el) => {
+        $('[data-sku], [data-product-id], .plp-card-wrapper, .product-card').each((_, el) => {
             try {
                 const $product = $(el);
                 
                 const $link = $product.find('a').first();
                 let productLink = $link.attr('href') || '';
                 if (productLink && !productLink.startsWith('http')) {
-                    productLink = `https://www.meesho.com${productLink}`;
+                    productLink = `https://www.jiomart.com${productLink}`;
                 }
 
                 const image = $product.find('img').first().attr('src') || 
                               $product.find('img').first().attr('data-src') || '';
 
-                let title = $product.find('[data-testid*="title"], .product-title, h4, h5, [class*="name"]').first().text().trim();
+                let title = $product.find('.plp-card-details-name, .product-title, h3, [class*="name"]').first().text().trim();
                 if (!title) {
-                    title = $link.attr('title') || $product.find('a').text().trim() || '';
+                    title = $link.attr('title') || '';
                 }
 
                 // Extract prices - look for ₹ symbol
                 let currentPrice: number | null = null;
                 let originalPrice: number | null = null;
 
-                $product.find('span, div, p').each((_, priceEl) => {
+                $product.find('span, div').each((_, priceEl) => {
                     const text = $(priceEl).text().trim();
                     if (text.includes('₹')) {
                         const priceMatch = text.match(/₹\s*([\d,]+)/);
@@ -156,39 +136,39 @@ export async function searchMeesho(query: string): Promise<UnifiedSearchResult[]
                         image: image.startsWith('//') ? `https:${image}` : image,
                         rating: 0,
                         rating_count: 0,
-                        seller: 'Meesho Seller',
-                        source: 'Meesho',
+                        seller: 'JioMart',
+                        source: 'Jiomart',
                         product_url: productLink || searchUrl
                     });
                 }
             } catch (e) { /* Continue */ }
         });
 
-        console.log(`[Meesho] Found ${results.length} products`);
+        console.log(`[JioMart] Found ${results.length} products`);
 
         if (results.length === 0) {
-            console.log(`[Meesho] Trying BingShopping fallback`);
-            return getMeeshoFromBingShopping(query);
+            console.log(`[JioMart] Trying BingShopping fallback`);
+            return getJioMartFromBingShopping(query);
         }
 
     } catch (e) {
-        console.warn(`[Meesho] Scrape failed:`, e instanceof Error ? e.message : e);
-        return getMeeshoFromBingShopping(query);
+        console.warn(`[JioMart] Scrape failed:`, e instanceof Error ? e.message : e);
+        return getJioMartFromBingShopping(query);
     }
 
     return results;
 }
 
-async function searchMeeshoViaDuckDuckGo(query: string): Promise<UnifiedSearchResult[]> {
+async function searchJioMartViaDuckDuckGo(query: string): Promise<UnifiedSearchResult[]> {
     const results: UnifiedSearchResult[] = [];
     
     try {
-        console.log(`[Meesho] Using DuckDuckGo fallback`);
+        console.log(`[JioMart] Using DuckDuckGo fallback`);
         
-        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' site:meesho.com')}`;
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' site:jiomart.com price')}`;
         
         const { data } = await axios.get(ddgUrl, {
-            headers: MEESHO_HEADERS,
+            headers: JIOMART_HEADERS,
             timeout: 10000,
         });
 
@@ -202,7 +182,7 @@ async function searchMeeshoViaDuckDuckGo(query: string): Promise<UnifiedSearchRe
                 const title = $link.text().trim();
                 const snippet = $result.find('.result__snippet').text().trim();
 
-                if (!href.includes('meesho.com')) return;
+                if (!href.includes('jiomart.com')) return;
 
                 let productUrl = href;
                 if (href.includes('uddg=')) {
@@ -213,9 +193,7 @@ async function searchMeeshoViaDuckDuckGo(query: string): Promise<UnifiedSearchRe
                 }
 
                 // Skip non-product pages
-                if (productUrl.includes('/search') || productUrl.includes('/about') || productUrl.includes('/help')) return;
-                // Check for product URL pattern /p/
-                if (!productUrl.includes('/p/')) return;
+                if (productUrl.includes('/search') || productUrl.includes('/category')) return;
 
                 let price = 0;
                 const priceMatch = snippet.match(/₹\s*([\d,]+)/);
@@ -223,32 +201,24 @@ async function searchMeeshoViaDuckDuckGo(query: string): Promise<UnifiedSearchRe
                     price = parseInt(priceMatch[1].replace(/,/g, ''));
                 }
 
-                // Try to extract image from Meesho CDN pattern
-                let image = '';
-                const productIdMatch = productUrl.match(/\/p\/([a-z0-9]+)$/i);
-                if (productIdMatch) {
-                    image = `https://images.meesho.com/images/products/${productIdMatch[1]}/1_200.webp`;
-                }
-
                 if (title) {
                     results.push({
-                        title: title.replace(' - Meesho', '').replace('| Meesho', '').trim(),
+                        title: title.replace(' - JioMart', '').replace('| JioMart', '').trim(),
                         price: price || 0,
-                        mrp: price ? Math.round(price * 1.3) : 0,
-                        image,
-                        rating: 4.0,
+                        image: '',
+                        rating: 0,
                         rating_count: 0,
-                        seller: 'Meesho Seller',
-                        source: 'Meesho',
+                        seller: 'JioMart',
+                        source: 'Jiomart',
                         product_url: productUrl
                     });
                 }
             } catch (e) { /* Continue */ }
         });
 
-        console.log(`[Meesho] DuckDuckGo found ${results.length} products`);
+        console.log(`[JioMart] DuckDuckGo found ${results.length} products`);
     } catch (e) {
-        console.warn('[Meesho] DuckDuckGo failed:', e instanceof Error ? e.message : e);
+        console.warn('[JioMart] DuckDuckGo failed:', e instanceof Error ? e.message : e);
     }
 
     return results;

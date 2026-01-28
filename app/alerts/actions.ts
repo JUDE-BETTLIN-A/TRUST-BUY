@@ -48,16 +48,21 @@ export async function createAlert(product: {
         return { success: true, message: "Alert already exists for this product." };
     }
 
-    await prisma.alert.create({
-        data: {
-            userEmail: session.user.email,
-            productTitle: product.title,
-            targetPrice: priceNum, // For now, target current price. Later we can add "Drop by X%" logic.
-            currentPrice: priceNum,
-            productImage: product.image,
-            productLink: product.link || "#",
-        },
-    });
+    try {
+        await prisma.alert.create({
+            data: {
+                userEmail: session.user.email,
+                productTitle: product.title,
+                targetPrice: priceNum, // For now, target current price. Later we can add "Drop by X%" logic.
+                currentPrice: priceNum,
+                productImage: product.image,
+                productLink: product.link || "#",
+            },
+        });
+    } catch (error) {
+         console.error("Failed to create alert:", error);
+         return { success: false, message: "Database error: Could not save alert." };
+    }
 
     revalidatePath("/alerts");
     return { success: true, message: "Alert set successfully!" };
@@ -67,23 +72,32 @@ export async function getAlerts() {
     const session = await auth();
     if (!session?.user?.email) return [];
 
-    return await prisma.alert.findMany({
-        where: { userEmail: session.user.email },
-        orderBy: { createdAt: "desc" },
-    });
+    try {
+        return await prisma.alert.findMany({
+            where: { userEmail: session.user.email },
+            orderBy: { createdAt: "desc" },
+        });
+    } catch (error) {
+        console.error("Failed to fetch alerts:", error);
+        return [];
+    }
 }
 
 export async function removeAlert(alertId: string) {
     const session = await auth();
     if (!session?.user?.email) return;
 
-    await prisma.alert.delete({
-        where: {
-            id: alertId,
-            userEmail: session.user.email // Security check
-        }
-    });
-    revalidatePath("/alerts");
+    try {
+        await prisma.alert.delete({
+            where: {
+                id: alertId,
+                userEmail: session.user.email // Security check
+            }
+        });
+        revalidatePath("/alerts");
+    } catch (error) {
+         console.error("Failed to remove alert:", error);
+    }
 }
 
 import { scrapeProductsReal } from "@/lib/scraper";
@@ -92,12 +106,19 @@ export async function refreshAlerts() {
     const session = await auth();
     if (!session?.user?.email) return { success: false, message: "Not authenticated" };
 
-    const alerts = await prisma.alert.findMany({
-        where: { userEmail: session.user.email },
-    });
-
     let updatedCount = 0;
     const droppedProducts: any[] = [];
+
+    // Wrap in try-catch to handle DB connection errors
+    let alerts: any[] = [];
+    try {
+        alerts = await prisma.alert.findMany({
+            where: { userEmail: session.user.email },
+        });
+    } catch (error) {
+        console.error("Failed to fetch alerts for refresh:", error); 
+        return { success: false, message: "Database connection failed" };
+    }
 
     for (const alert of alerts) {
         try {
@@ -118,6 +139,18 @@ export async function refreshAlerts() {
 
                     // Update DB if price changed
                     if (lowestPrice !== alert.currentPrice) {
+                         // User asked to notify if price reduces (from current)
+                        if (lowestPrice < alert.currentPrice) {
+                            droppedProducts.push({
+                                id: alert.id,
+                                title: alert.productTitle,
+                                oldPrice: alert.currentPrice,
+                                newPrice: lowestPrice,
+                                image: alert.productImage,
+                                link: alert.productLink
+                            });
+                        }
+
                         await prisma.alert.update({
                             where: { id: alert.id },
                             data: {
@@ -126,14 +159,6 @@ export async function refreshAlerts() {
                             },
                         });
                         updatedCount++;
-
-                        if (lowestPrice <= alert.targetPrice) {
-                            droppedProducts.push({
-                                id: alert.id,
-                                title: alert.productTitle,
-                                price: lowestPrice
-                            });
-                        }
                     }
                 }
             }

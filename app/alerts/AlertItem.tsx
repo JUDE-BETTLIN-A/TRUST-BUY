@@ -42,8 +42,9 @@ export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
         try {
             await removeAlert(alert.id);
         } catch (e) {
-            console.error("Failed to delete alert", e);
-            // Optionally revert if failed, but for now we assume success
+             // If removal fails, we might want to revert UI, but for now just warn
+             console.warn("Failed to delete alert (network/server issue)");
+             // Optionally: setRemoved(false);
         }
     };
 
@@ -82,14 +83,7 @@ export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
                 {!hidePriceDetails && (
                     <div className="flex items-center gap-3 mt-1">
                         <div className="flex flex-col">
-                            <span className="text-xs text-gray-500">Target</span>
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">
-                                ₹{alert.targetPrice.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
-                        <div className="flex flex-col">
-                            <span className="text-xs text-gray-500">Current</span>
+                            <span className="text-xs text-gray-500">Current Price</span>
                             <span className={`font-bold ${isDrop ? "text-green-600" : "text-gray-900 dark:text-white"}`}>
                                 ₹{alert.currentPrice.toLocaleString()}
                             </span>

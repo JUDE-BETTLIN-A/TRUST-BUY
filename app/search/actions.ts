@@ -45,7 +45,7 @@ export async function searchProductsAction(query: string, page: number = 1): Pro
 
         // 2. Legacy Scraper Fallback (Bing/DDG)
         // Only if aggregator yields low results (blocked or empty)
-        if (results.length < 5) {
+        if (results.length < 10) {
             console.log("[Search] Aggregator low results, fetching legacy fallback...");
             const legacyResults = await scrapeProductsReal(cleanQuery, page);
             // Also clean legacy result links
