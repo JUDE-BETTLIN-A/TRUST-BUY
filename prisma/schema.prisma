@@ -20,6 +20,7 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   alerts          Alert[]
+  notifications   Notification[]
   orders          Order[]
   history         History[]
 }
@@ -58,6 +59,26 @@ model Alert {
   agentPaymentMode String?  // "AUTO" or "MANUAL"
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  userEmail     String
+  user          User     @relation(fields: [userEmail], references: [email])
+  alertId       String?  // Reference to the alert that triggered this
+  type          String   // 'price_drop', 'price_rise', 'back_in_stock', etc.
+  title         String
+  message       String
+  productTitle  String?
+  oldPrice      Float?
+  newPrice      Float?
+  productImage  String?
+  productLink   String?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userEmail])
+  @@index([isRead])
 }
 
 model Order {

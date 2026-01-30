@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { getUserItem, STORAGE_KEYS } from "@/lib/user-storage";
+import { NotificationBell } from "./NotificationBell";
 
 export function TopNavbar() {
     const pathname = usePathname();
@@ -126,6 +127,10 @@ export function TopNavbar() {
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {session?.user && !isStaleGuest && (
+                            <NotificationBell />
+                        )}
+
                         {session?.user && !isStaleGuest ? (
                             <Link href="/settings" className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 p-1.5 rounded-lg transition-colors">
                                 <div className="text-right hidden md:block">

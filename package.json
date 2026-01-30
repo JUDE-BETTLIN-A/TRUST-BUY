@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx scripts/seed.ts",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "backend": "cd python-backend && python start.py",
+    "backend:dev": "cd python-backend && python main.py",
+    "bot": "cd python-backend && python run_bot.py",
+    "alerts:check": "cd python-backend && python run_daily_alerts.py"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",

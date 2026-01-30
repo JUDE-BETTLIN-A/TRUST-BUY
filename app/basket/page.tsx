@@ -145,7 +145,7 @@ export default function BasketPage() {
                         <div className="space-y-3 mb-6 border-b border-gray-200 dark:border-gray-700 pb-6">
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-500">Subtotal</span>
-                                <span className="font-medium text-gray-900 dark:text-white">₹{calculateTotal().toLocaleString()}</span>
+                                <span className="font-medium text-gray-900 dark:text-white">₹{calculateTotal().toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-500">Shipping</span>
@@ -155,7 +155,7 @@ export default function BasketPage() {
 
                         <div className="flex justify-between items-end mb-6">
                             <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                            <span className="text-2xl font-bold text-primary">₹{calculateTotal().toLocaleString()}</span>
+                            <span className="text-2xl font-bold text-primary">₹{calculateTotal().toLocaleString('en-IN')}</span>
                         </div>
 
                         <button className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all active:scale-95">

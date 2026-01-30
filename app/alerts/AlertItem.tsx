@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { removeAlert } from "./actions";
 
 
@@ -75,17 +76,20 @@ export function AlertItem({ alert, hidePriceDetails }: AlertItemProps) {
                     </span>
                 )}
             </div>
-            <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-900 dark:text-white truncate">
+            <div className="flex-1 min-w-0 overflow-hidden">
+                <Link 
+                    href={`/product/${alert.id}?title=${encodeURIComponent(alert.productTitle)}&price=${encodeURIComponent(alert.currentPrice.toString())}&image=${encodeURIComponent(alert.productImage)}&store=${encodeURIComponent('Alert Store')}&link=${encodeURIComponent(alert.productLink)}&rating=4.5&originalPrice=${encodeURIComponent(alert.targetPrice.toString())}`}
+                    className="font-bold text-gray-900 dark:text-white truncate hover:text-primary transition-colors block"
+                >
                     {alert.productTitle}
-                </h3>
+                </Link>
 
                 {!hidePriceDetails && (
                     <div className="flex items-center gap-3 mt-1">
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-500">Current Price</span>
                             <span className={`font-bold ${isDrop ? "text-green-600" : "text-gray-900 dark:text-white"}`}>
-                                ₹{alert.currentPrice.toLocaleString()}
+                                ₹{alert.currentPrice.toLocaleString('en-IN')}
                             </span>
                         </div>
                     </div>

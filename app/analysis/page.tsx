@@ -37,7 +37,7 @@ function PriceHistoryChart({ data, label }: { data: { date: string; price: numbe
           />
           <Tooltip
             contentStyle={{ backgroundColor: '#1f2937', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px' }}
-            formatter={(value) => [`₹${(value as number)?.toLocaleString() ?? '0'}`, 'Price']}
+            formatter={(value) => [`₹${(value as number)?.toLocaleString('en-IN') ?? '0'}`, 'Price']}
             labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
           />
           <Line
@@ -100,7 +100,7 @@ function FuturePredictionsChart({
           />
           <Tooltip
             contentStyle={{ backgroundColor: '#1f2937', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px' }}
-            formatter={(value) => [`₹${(value as number)?.toLocaleString() ?? '0'}`, 'Price']}
+            formatter={(value) => [`₹${(value as number)?.toLocaleString('en-IN') ?? '0'}`, 'Price']}
           />
           <ReferenceLine x="Today" stroke="#4f46e5" strokeDasharray="3 3" />
           <Area
@@ -236,7 +236,7 @@ function AnalysisContent() {
             <div className="flex-1 min-w-0">
               <h1 className="text-lg font-bold text-gray-900 line-clamp-2">{productName}</h1>
               <p className="text-sm text-gray-500">Source: {productSource}</p>
-              <p className="text-2xl font-bold text-primary mt-1">₹{analysis.currentPrice.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-primary mt-1">₹{analysis.currentPrice.toLocaleString('en-IN')}</p>
             </div>
           </div>
         </div>
@@ -349,15 +349,15 @@ function AnalysisContent() {
                       <div className="grid grid-cols-3 gap-4">
                         <div className="text-center p-4 bg-green-50 rounded-xl">
                           <p className="text-xs text-green-600 mb-1 font-bold">LOWEST</p>
-                          <p className="text-xl font-bold text-green-700">₹{prediction.predictedLowestPrice.toLocaleString()}</p>
+                          <p className="text-xl font-bold text-green-700">₹{prediction.predictedLowestPrice.toLocaleString('en-IN')}</p>
                         </div>
                         <div className="text-center p-4 bg-gray-50 rounded-xl">
                           <p className="text-xs text-gray-500 mb-1 font-bold">CURRENT</p>
-                          <p className="text-xl font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString()}</p>
+                          <p className="text-xl font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString('en-IN')}</p>
                         </div>
                         <div className="text-center p-4 bg-red-50 rounded-xl">
                           <p className="text-xs text-red-600 mb-1 font-bold">HIGHEST</p>
-                          <p className="text-xl font-bold text-red-700">₹{prediction.predictedHighestPrice.toLocaleString()}</p>
+                          <p className="text-xl font-bold text-red-700">₹{prediction.predictedHighestPrice.toLocaleString('en-IN')}</p>
                         </div>
                       </div>
                     </div>
@@ -376,15 +376,15 @@ function AnalysisContent() {
                     <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center p-3 border border-gray-100 rounded-lg">
                         <p className="text-xs text-gray-500">Average</p>
-                        <p className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString()}</p>
+                        <p className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="text-center p-3 border border-gray-100 rounded-lg">
                         <p className="text-xs text-gray-500">Highest</p>
-                        <p className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString()}</p>
+                        <p className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="text-center p-3 border border-gray-100 rounded-lg">
                         <p className="text-xs text-gray-500">Lowest</p>
-                        <p className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString()}</p>
+                        <p className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="text-center p-3 border border-gray-100 rounded-lg">
                         <p className="text-xs text-gray-500">Volatilty</p>
@@ -405,19 +405,19 @@ function AnalysisContent() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                   <span className="text-gray-500">Current Price</span>
-                  <span className="font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString()}</span>
+                  <span className="font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                   <span className="text-gray-500">60-Day Lowest</span>
-                  <span className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString()}</span>
+                  <span className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                   <span className="text-gray-500">60-Day Highest</span>
-                  <span className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString()}</span>
+                  <span className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">60-Day Average</span>
-                  <span className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString()}</span>
+                  <span className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>

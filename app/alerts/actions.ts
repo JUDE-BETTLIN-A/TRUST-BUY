@@ -100,6 +100,37 @@ export async function removeAlert(alertId: string) {
     }
 }
 
+function isProductMatch(alertTitle: string, scrapedTitle: string): boolean {
+    // Normalize both titles: lowercase, remove extra spaces and special characters
+    const normalize = (str: string) => str.toLowerCase()
+        .replace(/[^\w\s]/g, ' ') // Replace special chars with space
+        .replace(/\s+/g, ' ') // Normalize multiple spaces
+        .trim();
+
+    const normalizedAlert = normalize(alertTitle);
+    const normalizedScraped = normalize(scrapedTitle);
+
+    // Split into words
+    const alertWords = normalizedAlert.split(' ');
+    const scrapedWords = normalizedScraped.split(' ');
+
+    // Count how many key words from alert title appear in scraped title
+    let matchCount = 0;
+    const totalAlertWords = alertWords.length;
+
+    for (const word of alertWords) {
+        if (word.length > 2 && scrapedWords.includes(word)) { // Only count words longer than 2 chars
+            matchCount++;
+        }
+    }
+
+    // Require at least 60% of alert words to match (adjust threshold as needed)
+    const matchRatio = matchCount / totalAlertWords;
+    console.log(`[Match] "${normalizedAlert}" vs "${normalizedScraped}" - ${matchCount}/${totalAlertWords} words match (${(matchRatio * 100).toFixed(1)}%)`);
+
+    return matchRatio >= 0.6;
+}
+
 import { scrapeProductsReal } from "@/lib/scraper";
 
 export async function refreshAlerts() {
@@ -116,7 +147,7 @@ export async function refreshAlerts() {
             where: { userEmail: session.user.email },
         });
     } catch (error) {
-        console.error("Failed to fetch alerts for refresh:", error); 
+        console.error("Failed to fetch alerts for refresh:", error);
         return { success: false, message: "Database connection failed" };
     }
 
@@ -125,41 +156,53 @@ export async function refreshAlerts() {
             // Scrape current market data
             // Limit to 1 page to be fast
             const results = await scrapeProductsReal(alert.productTitle, 1);
+            console.log(`[Refresh] Scraped ${results.length} results for "${alert.productTitle}"`);
+            if (results.length > 0) {
+                console.log(`[Refresh] Top results:`, results.slice(0, 3).map(r => ({ title: r.title.substring(0, 30), price: r.price })));
+            }
 
             if (results.length > 0) {
-                // Find the lowest price among the results that is likely the same product
-                // Simple heuristic: just take the lowest price from the top 3 results to avoid completely irrelevant cheap items
-                const topResults = results.slice(0, 3);
-                const prices = topResults
-                    .map(p => parseFloat(p.price.replace(/[^0-9.]/g, "")))
-                    .filter(p => !isNaN(p) && p > 0);
+                // Filter results that are likely the same product based on title similarity
+                const relevantResults = results.filter(result => isProductMatch(alert.productTitle, result.title));
+                console.log(`[Refresh] After filtering, ${relevantResults.length} relevant results`);
 
-                if (prices.length > 0) {
-                    const lowestPrice = Math.min(...prices);
+                if (relevantResults.length > 0) {
+                    // Find the lowest price among the relevant results
+                    const prices = relevantResults
+                        .map(p => parseFloat(p.price.replace(/[^0-9.]/g, "")))
+                        .filter(p => !isNaN(p) && p > 0);
+                    console.log(`[Refresh] Extracted prices from relevant results:`, prices);
 
-                    // Update DB if price changed
-                    if (lowestPrice !== alert.currentPrice) {
-                         // User asked to notify if price reduces (from current)
-                        if (lowestPrice < alert.currentPrice) {
-                            droppedProducts.push({
-                                id: alert.id,
-                                title: alert.productTitle,
-                                oldPrice: alert.currentPrice,
-                                newPrice: lowestPrice,
-                                image: alert.productImage,
-                                link: alert.productLink
+                    if (prices.length > 0) {
+                        const lowestPrice = Math.min(...prices);
+                        console.log(`[Refresh] Lowest price: ${lowestPrice}, current: ${alert.currentPrice}`);
+
+                        // Update DB if price changed
+                        if (lowestPrice !== alert.currentPrice) {
+                             // User asked to notify if price reduces (from current)
+                            if (lowestPrice < alert.currentPrice) {
+                                droppedProducts.push({
+                                    id: alert.id,
+                                    title: alert.productTitle,
+                                    oldPrice: alert.currentPrice,
+                                    newPrice: lowestPrice,
+                                    image: alert.productImage,
+                                    link: alert.productLink
+                                });
+                            }
+
+                            await prisma.alert.update({
+                                where: { id: alert.id },
+                                data: {
+                                    currentPrice: lowestPrice,
+                                    updatedAt: new Date()
+                                },
                             });
+                            updatedCount++;
                         }
-
-                        await prisma.alert.update({
-                            where: { id: alert.id },
-                            data: {
-                                currentPrice: lowestPrice,
-                                updatedAt: new Date()
-                            },
-                        });
-                        updatedCount++;
                     }
+                } else {
+                    console.log(`[Refresh] No relevant results found for "${alert.productTitle}", keeping current price`);
                 }
             }
         } catch (error) {
@@ -173,4 +216,75 @@ export async function refreshAlerts() {
         message: `Updated ${updatedCount} products with latest market prices.`,
         droppedProducts
     };
+}
+
+export async function getNotifications() {
+    const session = await auth();
+    if (!session?.user?.email) return { success: false, notifications: [] };
+
+    try {
+        const notifications = await prisma.notification.findMany({
+            where: { userEmail: session.user.email },
+            orderBy: { createdAt: "desc" },
+            take: 50 // Limit to last 50 notifications
+        });
+
+        // Transform the data to match the frontend interface
+        const transformedNotifications = notifications.map(notification => ({
+            id: notification.id,
+            alertId: notification.alertId,
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            productTitle: notification.productTitle,
+            oldPrice: notification.oldPrice,
+            newPrice: notification.newPrice,
+            productImage: notification.productImage,
+            productLink: notification.productLink,
+            isRead: notification.isRead,
+            createdAt: notification.createdAt.toISOString() // Convert Date to string
+        }));
+
+        return { success: true, notifications: transformedNotifications };
+    } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+        return { success: false, notifications: [] };
+    }
+}
+
+export async function markNotificationRead(notificationId: string) {
+    const session = await auth();
+    if (!session?.user?.email) return { success: false };
+
+    try {
+        await prisma.notification.updateMany({
+            where: {
+                id: notificationId,
+                userEmail: session.user.email // Security check
+            },
+            data: { isRead: true }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to mark notification as read:", error);
+        return { success: false };
+    }
+}
+
+export async function markAllNotificationsRead() {
+    const session = await auth();
+    if (!session?.user?.email) return { success: false };
+
+    try {
+        await prisma.notification.updateMany({
+            where: { userEmail: session.user.email },
+            data: { isRead: true }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to mark all notifications as read:", error);
+        return { success: false };
+    }
 }

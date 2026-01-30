@@ -4,8 +4,14 @@ from prophet import Prophet
 from datetime import datetime, timedelta
 import random
 from sqlalchemy import create_engine, text
-
 import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables from .env file in parent directory
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 # Load from Environment
 DATABASE_URL = os.environ.get("DATABASE_URL")

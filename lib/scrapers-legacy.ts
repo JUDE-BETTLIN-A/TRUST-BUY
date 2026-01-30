@@ -334,7 +334,62 @@ export async function scrapeProductsBing(query: string, page: number = 1): Promi
     } catch (err) {
         console.error("Bing scrape failed:", err);
     }
+
+    // If no products found, try fallback queries for specific product searches
+    if (products.length === 0) {
+        const fallbackQueries = generateFallbackQueries(query);
+        for (const fallbackQuery of fallbackQueries) {
+            if (fallbackQuery !== query) {
+                console.log(`[Scraper] Trying fallback query: ${fallbackQuery}`);
+                try {
+                    const fallbackProducts = await scrapeProductsBing(fallbackQuery, page);
+                    if (fallbackProducts.length > 0) {
+                        console.log(`[Scraper] Fallback query "${fallbackQuery}" found ${fallbackProducts.length} products`);
+                        return fallbackProducts;
+                    }
+                } catch (e) {
+                    console.warn(`[Scraper] Fallback query "${fallbackQuery}" failed:`, e);
+                }
+            }
+        }
+    }
+
     return products;
+}
+
+function generateFallbackQueries(originalQuery: string): string[] {
+    const queries = [originalQuery];
+    const lowerQuery = originalQuery.toLowerCase();
+
+    // For iPhone models, try more general versions
+    if (lowerQuery.includes('iphone')) {
+        if (lowerQuery.includes('pro max')) {
+            queries.push(originalQuery.replace(/pro max/i, 'pro'));
+            queries.push(originalQuery.replace(/pro max/i, ''));
+            queries.push('iPhone 15');
+        } else if (lowerQuery.includes('pro')) {
+            queries.push(originalQuery.replace(/pro/i, ''));
+            queries.push('iPhone 15');
+        } else if (lowerQuery.includes('15') || lowerQuery.includes('14') || lowerQuery.includes('13')) {
+            const model = lowerQuery.match(/(15|14|13)/)?.[0];
+            if (model) {
+                queries.push(`iPhone ${model}`);
+            }
+        }
+    }
+
+    // For other products, try removing specific model numbers
+    const words = originalQuery.split(/\s+/);
+    if (words.length > 2) {
+        // Remove last word (often model number)
+        queries.push(words.slice(0, -1).join(' '));
+        // Remove last two words
+        if (words.length > 3) {
+            queries.push(words.slice(0, -2).join(' '));
+        }
+    }
+
+    return [...new Set(queries)]; // Remove duplicates
 }
 
 export async function scrapeProductsEbay(query: string, page: number = 1): Promise<Product[]> {
@@ -424,7 +479,7 @@ export async function scrapeProductsDuckDuckGo(query: string, page: number = 1):
             const snippet = $(el).find('.result__snippet').text().trim();
             const link = $(el).find('.result__a').attr('href');
 
-            const priceMatch = (title + " " + snippet).match(/\$[\d,]+(\.\d{2})?/);
+            const priceMatch = (title + " " + snippet).match(/(?:\$|₹|Rs\.?)\s?[\d,]+(?:\.\d{2})?/i);
 
             if (title && priceMatch) {
                 const image = `https://image.pollinations.ai/prompt/${encodeURIComponent(title)}%20product%20photo?width=400&height=400&nologo=true`;
