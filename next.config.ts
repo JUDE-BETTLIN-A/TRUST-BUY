@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Fix workspace root detection issue - use absolute path
-  turbopack: {
-    root: "C:\\Users\\judeb\\Downloads\\public",
-  },
   images: {
     dangerouslyAllowSVG: true,
     remotePatterns: [
