@@ -12,6 +12,23 @@ import { addHistoryToDB } from '../history/actions';
 import { searchProductsAction } from './actions';
 import { FilterSidebar, FilterState } from './components/FilterSidebar';
 import { getUserItem, setUserItem, STORAGE_KEYS } from '@/lib/user-storage';
+import dynamic from 'next/dynamic';
+
+// Lazy load the SearchResultCard for better performance
+const SearchResultCardLazy = dynamic(() => import('@/components/SearchResultCard').then(mod => mod.SearchResultCard), {
+  loading: () => (
+    <div className="bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-800 rounded-xl p-4 animate-pulse">
+      <div className="flex gap-4">
+        <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="skeleton h-4 w-3/4 rounded" />
+          <div className="skeleton h-4 w-1/2 rounded" />
+          <div className="skeleton h-4 w-1/4 rounded" />
+        </div>
+      </div>
+    </div>
+  )
+});
 
 const DEFAULT_FILTERS: FilterState = {
   minPrice: 0,
@@ -674,7 +691,7 @@ function SearchPageContent() {
                     </div>
                   </div>
                 )}
-                <SearchResultCard
+                <SearchResultCardLazy
                   id={idx}
                   title={product.title}
                   price={product.price}

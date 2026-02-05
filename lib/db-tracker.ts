@@ -54,25 +54,37 @@ export async function trackProductPrice(product: {
 export async function getProductHistory(url: string) {
     const client = await pool.connect();
     try {
+        console.log(`[DB History] Looking up product history for URL: ${url}`);
+
         // 1. Get Product ID
         const productRes = await client.query('SELECT id FROM products WHERE url = $1', [url]);
 
-        if (productRes.rows.length === 0) return null;
+        if (productRes.rows.length === 0) {
+            console.log(`[DB History] ❌ No product found for URL: ${url}`);
+            return null;
+        }
 
         const productId = productRes.rows[0].id;
+        console.log(`[DB History] ✅ Found product ID: ${productId}`);
 
         // 2. Get History
         const historyRes = await client.query(`
-            SELECT created_at, price 
-            FROM price_history 
-            WHERE product_id = $1 
+            SELECT created_at, price
+            FROM price_history
+            WHERE product_id = $1
             ORDER BY created_at ASC
         `, [productId]);
+
+        console.log(`[DB History] 📊 Found ${historyRes.rows.length} price history records`);
+        if (historyRes.rows.length > 0) {
+            const dates = historyRes.rows.map(r => r.created_at);
+            console.log(`[DB History] 📅 Date range: ${dates[0]} to ${dates[dates.length-1]}`);
+        }
 
         return historyRes.rows;
 
     } catch (err) {
-        console.error("DB History Error:", err);
+        console.error("[DB History] ❌ Error:", err);
         return null;
     } finally {
         client.release();

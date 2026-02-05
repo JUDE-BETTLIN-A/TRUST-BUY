@@ -13,3 +13,5 @@ newsapi-python==0.2.7
 python-dotenv==1.0.0
 plotly==5.17.0
 matplotlib==3.8.2
+telethon==1.33.0
+pillow==10.1.0

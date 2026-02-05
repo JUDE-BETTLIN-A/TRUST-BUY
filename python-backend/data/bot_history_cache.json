@@ -1,0 +1,23 @@
+{
+  "https://www.amazon.in/dp/B0CHX2F5QT": {
+    "timestamp": "2026-01-31T02:26:32.335744",
+    "history": [
+      {
+        "date": "2025-12-02",
+        "price": 57499.0,
+        "source": "Bot_High"
+      },
+      {
+        "date": "2026-01-01",
+        "price": 42500.0,
+        "source": "Bot_Low"
+      },
+      {
+        "date": "2026-01-31",
+        "price": 47908.0,
+        "source": "Bot_Current"
+      }
+    ],
+    "source": "Telegram_pricewatchio"
+  }
+}

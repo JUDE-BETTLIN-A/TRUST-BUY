@@ -8,7 +8,22 @@ import { analyzeProductPrice, PriceAnalysis } from '@/lib/price-analysis';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, AreaChart, Area } from 'recharts';
 
 // Price History Chart
+// Price History Chart
 function PriceHistoryChart({ data, label }: { data: { date: string; price: number }[]; label: string }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-[250px] flex items-center justify-center bg-gray-50 rounded-xl border border-gray-100">
+        <div className="text-center text-gray-400">
+          <span className="material-symbols-outlined text-4xl mb-2">query_stats</span>
+          <p className="text-sm font-medium">No verified price history found</p>
+          <p className="text-xs text-gray-500 mt-1 max-w-[200px] mx-auto">
+            We checked external sources but couldn't find a legitimate history for this specific item. Tracking is now active.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Format data for Recharts
   const chartData = data.map(d => ({
     date: new Date(d.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
@@ -310,9 +325,8 @@ function AnalysisContent() {
                       predictions={futurePredictions.length > 0 ? futurePredictions : [
                         { date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.97), confidence: 75 },
                         { date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.95), confidence: 70 },
-                        { date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.92), confidence: 65, event: 'Expected Sale' },
-                        { date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.94), confidence: 55 },
-                        { date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.90), confidence: 50 }
+                        { date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.92), confidence: 65, event: 'Expected Sale' },
+                        { date: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], predictedPrice: Math.round(analysis.currentPrice * 0.94), confidence: 60 }
                       ]}
                     />
                     <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
@@ -345,7 +359,7 @@ function AnalysisContent() {
 
                     {/* Predicted Price Range */}
                     <div>
-                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Next 90 Days Range</h3>
+                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Next 30 Days Range</h3>
                       <div className="grid grid-cols-3 gap-4">
                         <div className="text-center p-4 bg-green-50 rounded-xl">
                           <p className="text-xs text-green-600 mb-1 font-bold">LOWEST</p>
@@ -370,27 +384,46 @@ function AnalysisContent() {
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary">history</span>
                       Past 60 Days Price History
+                      {priceHistory.length > 0 && priceHistory[0]?.source?.includes('Estimated') && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-normal ml-2">
+                          Estimated
+                        </span>
+                      )}
                     </h3>
+                    
+                    {/* Show info banner for estimated data */}
+                    {priceHistory.length > 0 && priceHistory[0]?.source?.includes('Estimated') && (
+                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                        <span className="material-symbols-outlined text-amber-600 text-lg">info</span>
+                        <p className="text-xs text-amber-700">
+                          This is an estimated price history based on typical market patterns for this product category. 
+                          Actual prices may vary. We're tracking this product to build real data.
+                        </p>
+                      </div>
+                    )}
+                    
                     <PriceHistoryChart data={priceHistory} label="" />
 
-                    <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center p-3 border border-gray-100 rounded-lg">
-                        <p className="text-xs text-gray-500">Average</p>
-                        <p className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString('en-IN')}</p>
+                    {priceHistory.length > 0 && (
+                      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 border border-gray-100 rounded-lg">
+                          <p className="text-xs text-gray-500">Average</p>
+                          <p className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="text-center p-3 border border-gray-100 rounded-lg">
+                          <p className="text-xs text-gray-500">Highest</p>
+                          <p className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="text-center p-3 border border-gray-100 rounded-lg">
+                          <p className="text-xs text-gray-500">Lowest</p>
+                          <p className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString('en-IN')}</p>
+                        </div>
+                        <div className="text-center p-3 border border-gray-100 rounded-lg">
+                          <p className="text-xs text-gray-500">Volatilty</p>
+                          <p className="font-bold text-amber-600 capitalize">{pastAnalysis.volatility}</p>
+                        </div>
                       </div>
-                      <div className="text-center p-3 border border-gray-100 rounded-lg">
-                        <p className="text-xs text-gray-500">Highest</p>
-                        <p className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="text-center p-3 border border-gray-100 rounded-lg">
-                        <p className="text-xs text-gray-500">Lowest</p>
-                        <p className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString('en-IN')}</p>
-                      </div>
-                      <div className="text-center p-3 border border-gray-100 rounded-lg">
-                        <p className="text-xs text-gray-500">Volatilty</p>
-                        <p className="font-bold text-amber-600 capitalize">{pastAnalysis.volatility}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -407,57 +440,73 @@ function AnalysisContent() {
                   <span className="text-gray-500">Current Price</span>
                   <span className="font-bold text-gray-900">₹{analysis.currentPrice.toLocaleString('en-IN')}</span>
                 </div>
-                <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                  <span className="text-gray-500">60-Day Lowest</span>
-                  <span className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                  <span className="text-gray-500">60-Day Highest</span>
-                  <span className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">60-Day Average</span>
-                  <span className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString('en-IN')}</span>
-                </div>
+                {priceHistory.length > 0 ? (
+                  <>
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                      <span className="text-gray-500">60-Day Lowest</span>
+                      <span className="font-bold text-green-600">₹{analysis.lowestPrice.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                      <span className="text-gray-500">60-Day Highest</span>
+                      <span className="font-bold text-red-500">₹{analysis.highestPrice.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">60-Day Average</span>
+                      <span className="font-bold text-gray-700">₹{analysis.averagePrice.toLocaleString('en-IN')}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-gray-400">
+                    <span className="material-symbols-outlined text-3xl mb-2">hourglass_empty</span>
+                    <p className="text-sm">Historical statistics will appear once we collect enough price data</p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Past Analysis */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Past Price Analysis</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Trend</span>
-                  <span className={`font-bold flex items-center gap-1 ${trendColors[pastAnalysis.trend]}`}>
-                    <span className="material-symbols-outlined text-sm">{trendIcons[pastAnalysis.trend]}</span>
-                    {pastAnalysis.trend.charAt(0).toUpperCase() + pastAnalysis.trend.slice(1)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Volatility</span>
-                  <span className={`font-bold ${pastAnalysis.volatility === 'low' ? 'text-green-600' :
-                    pastAnalysis.volatility === 'medium' ? 'text-amber-600' : 'text-red-600'
-                    }`}>
-                    {pastAnalysis.volatility.charAt(0).toUpperCase() + pastAnalysis.volatility.slice(1)}
-                  </span>
-                </div>
-                <div className="pt-3 border-t border-gray-100">
-                  <p className="text-sm text-gray-500 mb-1">Seasonal Pattern</p>
-                  <p className="text-sm text-gray-700">{pastAnalysis.seasonalPattern}</p>
-                </div>
-                {pastAnalysis.priceDropEvents.length > 0 && (
-                  <div className="pt-3 border-t border-gray-100">
-                    <p className="text-sm text-gray-500 mb-2">Notable Price Drop Events</p>
-                    <div className="flex flex-wrap gap-2">
-                      {pastAnalysis.priceDropEvents.map((event, i) => (
-                        <span key={i} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                          {event}
-                        </span>
-                      ))}
-                    </div>
+              {priceHistory.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Trend</span>
+                    <span className={`font-bold flex items-center gap-1 ${trendColors[pastAnalysis.trend]}`}>
+                      <span className="material-symbols-outlined text-sm">{trendIcons[pastAnalysis.trend]}</span>
+                      {pastAnalysis.trend.charAt(0).toUpperCase() + pastAnalysis.trend.slice(1)}
+                    </span>
                   </div>
-                )}
-              </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Volatility</span>
+                    <span className={`font-bold ${pastAnalysis.volatility === 'low' ? 'text-green-600' :
+                      pastAnalysis.volatility === 'medium' ? 'text-amber-600' : 'text-red-600'
+                      }`}>
+                      {pastAnalysis.volatility.charAt(0).toUpperCase() + pastAnalysis.volatility.slice(1)}
+                    </span>
+                  </div>
+                  <div className="pt-3 border-t border-gray-100">
+                    <p className="text-sm text-gray-500 mb-1">Seasonal Pattern</p>
+                    <p className="text-sm text-gray-700">{pastAnalysis.seasonalPattern}</p>
+                  </div>
+                  {pastAnalysis.priceDropEvents.length > 0 && (
+                    <div className="pt-3 border-t border-gray-100">
+                      <p className="text-sm text-gray-500 mb-2">Notable Price Drop Events</p>
+                      <div className="flex flex-wrap gap-2">
+                        {pastAnalysis.priceDropEvents.map((event, i) => (
+                          <span key={i} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                            {event}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-400">
+                  <span className="material-symbols-outlined text-3xl mb-2">analytics</span>
+                  <p className="text-sm">Price analysis will be available once we have historical data</p>
+                </div>
+              )}
             </div>
 
             {/* Alerts */}

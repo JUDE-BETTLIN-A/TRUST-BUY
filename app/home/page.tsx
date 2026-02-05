@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
 
 import { getHistory, HistoryItem } from '@/lib/history';
 import { getHistoryFromDB } from '../history/actions';
@@ -12,8 +13,13 @@ import { searchProductsAction } from '../search/actions';
 // import { searchProducts as searchProductsMock } from '@/lib/mock-scraper';
 import { getAlerts } from '../alerts/actions';
 import { Product } from '@/lib/mock-scraper';
-import { TrendingCard } from '@/components/TrendingCard';
 import { getUserItem, STORAGE_KEYS } from '@/lib/user-storage';
+import { dataCache } from '@/lib/cache';
+
+// Lazy load heavy components
+const TrendingCard = dynamic(() => import('@/components/TrendingCard').then(mod => ({ default: mod.TrendingCard })), {
+  loading: () => <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+});
 
 export default function HomePage() {
   const router = useRouter();
@@ -66,10 +72,18 @@ export default function HomePage() {
 
     // Fetch Dashboard Data if logged in
     if (session?.user) {
-      getAlerts().then(alerts => {
-        setActiveAlertsCount(alerts.length);
-
-      }).catch(err => console.error("Failed to load alerts", err));
+      // Load alerts with caching
+      const cachedAlerts = dataCache.get(`alerts_${session.user.email}`);
+      if (cachedAlerts) {
+        setActiveAlertsCount(cachedAlerts.length);
+      } else {
+        getAlerts().then(alerts => {
+          setActiveAlertsCount(alerts.length);
+          if (session.user?.email) {
+            dataCache.set(`alerts_${session.user.email}`, alerts);
+          }
+        }).catch(err => console.error("Failed to load alerts", err));
+      }
 
       // Get basket count (user-specific)
       const basketData = getUserItem(STORAGE_KEYS.BASKET, userId);
@@ -96,6 +110,15 @@ export default function HomePage() {
       };
 
       try {
+        // Check cache first
+        const cachedTrending = dataCache.get('trending_products');
+        if (cachedTrending) {
+          console.log("Using cached trending products");
+          setTrendingProducts(cachedTrending);
+          setLoadingTrending(false);
+          return;
+        }
+
         // Use a specific trending query to ensure we get trending products
         const products = await searchProductsAction("trending", 1);
 
@@ -108,6 +131,9 @@ export default function HomePage() {
 
         console.log("Trending products loaded (after filtering movies & shuffling):", trendingProducts.length);
         setTrendingProducts(trendingProducts);
+        
+        // Cache the results
+        dataCache.set('trending_products', trendingProducts);
       } catch (e) {
         console.error("Failed to load trending items", e);
         setTrendingProducts([]);

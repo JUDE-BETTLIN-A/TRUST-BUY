@@ -6,7 +6,7 @@
  */
 
 // --- Configuration ---
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // MODEL FALLBACK ORDER (From user requirements)

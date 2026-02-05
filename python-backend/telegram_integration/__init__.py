@@ -59,10 +59,59 @@ class TelegramIntegration:
                 logger.error(f"Bot {i+1} failed: {e}")
                 continue
 
-        # All bots failed, fallback to direct backend call
-        logger.warning("All Telegram bots failed, falling back to direct backend")
-        return await self._fallback_backend_analysis(product_url, product_name, current_price)
+    async def get_price_history(self, product_url: str, product_name: str = "") -> Optional[List[Dict]]:
+        """
+        Get price history data from Telegram bots
+        Returns list of {date, price} dictionaries for Prophet model
+        """
+        # 0. Check for locally cached data (from telegram_scraper_client.py)
+        try:
+            cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'bot_history_cache.json')
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    cache = json.load(f)
+                    
+                if product_url in cache:
+                    entry = cache[product_url]
+                    cached_history = entry.get('history')
+                    # Check age? For now assume it's fresh enough
+                    logger.info(f"✅ Found cached history for {product_url} from {entry.get('source')}")
+                    return cached_history
+        except Exception as e:
+            logger.error(f"Error reading cache: {e}")
 
+        for i, bot in enumerate(self.active_bots):
+            try:
+                logger.info(f"Trying bot {i+1} for price history")
+
+                history_data = await self._request_history_from_bot(bot, product_url, product_name)
+
+                if history_data and len(history_data) > 0:
+                    logger.info(f"Bot {i+1} provided {len(history_data)} history points")
+                    return history_data
+
+            except Exception as e:
+                logger.error(f"Bot {i+1} history failed: {e}")
+                continue
+
+        logger.warning("All Telegram bots failed to provide history")
+        return None
+
+    async def _request_history_from_bot(self, bot: Bot, product_url: str, product_name: str) -> Optional[List[Dict]]:
+        """Request price history from a specific bot"""
+        try:
+            # We removed the mock data generation.
+            # In a future update, this could implement a real Telegram Client (TDLib/Telethon) 
+            # to search public channel message history for this product URL.
+            # For now, to ensure 100% legitimacy, we return None if we can't get real data.
+            
+            # TODO: Implement real Telethon client to search @pricehistory_logs or similar channels
+            
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to get history from bot: {e}")
+            return None
     async def set_price_alert(self, product_url: str, target_price: float, user_id: str) -> bool:
         """
         Set price alert via Telegram bots
