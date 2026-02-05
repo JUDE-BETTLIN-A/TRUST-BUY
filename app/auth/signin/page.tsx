@@ -71,16 +71,6 @@ export default function SignInPage() {
                 </svg>
                 Continue with Google
               </button>
-
-              <button
-                onClick={() => signIn("facebook", { callbackUrl: "/home" })}
-                className="w-full flex items-center justify-center gap-3 bg-[#1877F2] text-white font-semibold py-3 px-4 rounded-xl hover:bg-[#1665d8] transition-all active:scale-[0.98]"
-              >
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 2.848-6.304 6.162-6.304 1.582 0 3.07.135 3.07.135v3.315h-1.684c-1.956 0-2.484 1.258-2.484 2.551v1.884h3.66l-1.018 3.666h-2.646v7.98c5.207-.803 9.18-5.289 9.18-10.669a10.8 10.8 0 1 0-22.34 0c0 5.38 3.974 9.866 9.181 10.669z" />
-                </svg>
-                Continue with Facebook
-              </button>
             </div>
 
             {/* Divider */}
